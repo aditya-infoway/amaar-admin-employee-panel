@@ -7,7 +7,10 @@ declare module "@tanstack/react-table" {
   interface TableMeta<TData extends RowData> {
     deleteRow?: (row: Row<TData>) => void;
     deleteRows?: (rows: Row<TData>[]) => void;
-    openEditDrawer?: (row: TData) => void;
+    // openEditDrawer?: (row: TData) => void;
+    openEditDrawer?: (row: Row<TData>) => void;
+    openExitDrawer?: (row: Row<TData>) => void;
+    printRow?: (row: Row<TData>) => void;
     viewRow?: (row: TData) => void;
     updateData?: (rowIndex: number, columnId: string, value: unknown) => void;
     setTableSettings?: Dispatch<SetStateAction<TableSettings>>;

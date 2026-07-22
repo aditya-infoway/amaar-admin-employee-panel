@@ -11,6 +11,7 @@ import VehicleExit from "@/app/pages/security/vehicle-master/exit";
 // Visitor Master
 import VisitorEntry from "@/app/pages/security/visitoremaster";
 import VisitorForm from "@/app/pages/security/visitoremaster/form";
+import VisitorEditForm from "@/app/pages/security/visitoremaster/form/VisitorEntryEditForm";
 import VisitorExit from "@/app/pages/security/visitoremaster/exit";
 
 export const securityRoutes = [
@@ -80,7 +81,7 @@ export const securityRoutes = [
       },
       {
         path: "edit/:id",
-        Component: VisitorForm,
+        Component: VisitorEditForm,
       },
       {
         path: "visitor-exit",

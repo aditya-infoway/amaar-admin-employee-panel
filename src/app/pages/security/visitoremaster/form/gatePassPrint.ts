@@ -13,6 +13,11 @@ function getQrMarkup(value: string) {
 export function printGatePass(visitor: VisitorEntry) {
   const qrSvg = getQrMarkup(visitor.gatePassNumber);
 
+  // ✅ NEW — Visitor Photo block (agar photo nahi hai to placeholder)
+  const photoBlock = visitor.visitorPhoto
+    ? `<img src="${visitor.visitorPhoto}" class="visitor-photo" />`
+    : `<div class="photo-placeholder">No Photo</div>`;
+
   const html = `
     <!DOCTYPE html>
     <html>
@@ -36,7 +41,40 @@ export function printGatePass(visitor: VisitorEntry) {
           }
           .header h1 { margin: 0; font-size: 18px; letter-spacing: 1px; }
           .header p { margin: 2px 0 0; font-size: 11px; color: #6b7280; }
-          .qr { text-align: center; margin-bottom: 14px; }
+
+          /* ✅ NEW — row: photo left, QR right */
+          .qr-row {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 14px;
+          }
+          .qr-row > div { text-align: center; }
+          .visitor-photo {
+            width: 120px;
+            height: 120px;
+            object-fit: cover;
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+          }
+          .photo-placeholder {
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px dashed #d1d5db;
+            border-radius: 8px;
+            font-size: 11px;
+            color: #9ca3af;
+          }
+          .qr-label {
+            margin-top: 4px;
+            font-size: 10px;
+            color: #9ca3af;
+          }
+
           .row {
             display: flex;
             justify-content: space-between;
@@ -60,7 +98,18 @@ export function printGatePass(visitor: VisitorEntry) {
             <h1>VISITOR GATE PASS</h1>
             <p>Gate Pass No: ${visitor.gatePassNumber}</p>
           </div>
-          <div class="qr">${qrSvg}</div>
+
+          <div class="qr-row">
+            <div>
+              ${photoBlock}
+              <div class="qr-label">Visitor Photo</div>
+            </div>
+            <div>
+              ${qrSvg}
+              <div class="qr-label">Scan QR</div>
+            </div>
+          </div>
+
           <div class="row"><span>Visitor Name</span><span>${visitor.fullName}</span></div>
           <div class="row"><span>Badge Number</span><span>${visitor.badgeNumber}</span></div>
           <div class="row"><span>Gate Number</span><span>${visitor.gate || "—"}</span></div>

@@ -1,51 +1,105 @@
 import { ChevronLeftIcon } from "@heroicons/react/20/solid";
 import { Controller, useForm } from "react-hook-form";
 import { Link, useNavigate, useParams } from "react-router";
+import { useEffect, useState } from "react";
 
 import { Page } from "@/components/shared/Page";
 import { DatePicker } from "@/components/shared/form/Datepicker";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { PhotoUpload } from "@/components/shared/form/PhotoUpload";
 import { Button, Card, Input } from "@/components/ui";
+import { Get, Post, Put, toastsuccessmsg, toasterrormsg } from "@/ApiHelper";
 import {
   entryStatusOptions,
   gateOptions,
   vehicleBrandOptions,
   vehicleTypeOptions,
 } from "../../../master/shared/constants";
-import { vehicleStorage } from "../../../master/shared/storage";
-import { emptyVehicle, VehicleEntry } from "../data";
+import { buildFormData } from "../../../master/shared/toFormData";
+import { emptyVehicle, mapApiVehicleEntryToVehicleEntry, VehicleEntry } from "../data";
 
 export default function VehicleEntryFormPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const isEdit = Boolean(id);
-  const existing = isEdit
-    ? vehicleStorage.getItems().find((item) => item.id === id)
-    : undefined;
+  const [loading, setLoading] = useState(isEdit);
+  const [submitting, setSubmitting] = useState(false);
 
   const {
     register,
     handleSubmit,
     control,
+    reset,
     formState: { errors },
   } = useForm<VehicleEntry>({
-    defaultValues: existing || emptyVehicle(),
+    defaultValues: emptyVehicle(),
   });
 
-  const onSubmit = (data: VehicleEntry) => {
-    const items = vehicleStorage.getItems();
-    const entry: VehicleEntry = {
-      ...data,
-      id: existing?.id || crypto.randomUUID(),
-    };
+  // ---- Edit mode me existing record API se fetch karo ----
+  useEffect(() => {
+    if (!isEdit || !id) return;
+    (async () => {
+      try {
+        const response = await Get(`employee/security/vehicleentry/${id}`, {}, false);
+        if (response.data?.success) {
+          reset(mapApiVehicleEntryToVehicleEntry(response.data.data));
+        } else {
+          toasterrormsg(response.data?.message || "Failed to fetch vehicle entry.");
+        }
+      } catch (error) {
+        toasterrormsg("Something went wrong while fetching the vehicle entry.");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [id, isEdit, reset]);
 
-    const next = existing
-      ? items.map((row) => (row.id === entry.id ? entry : row))
-      : [entry, ...items];
+  const onSubmit = async (data: VehicleEntry) => {
+    setSubmitting(true);
+    const formData = buildFormData({
+      entryDate: data.entryDate,
+      entryTime: data.entryTime,
+      vehicleType: data.vehicleType,
+      vehicleNumber: data.vehicleNumber,
+      vehicleBrand: data.vehicleBrand,
+      driverName: data.driverName,
+      mobileNumber: data.mobileNumber,
+      company: data.company,
+      purpose: data.purpose,
+      employeeToMeet: data.employeeToMeet,
+      gateNumber: data.gateNumber,
+      vehicleCondition: data.vehicleCondition,
+      status: data.status,
+      driverPhoto: data.driverPhoto,
+      rcPhoto: data.rcPhoto,
+      vehiclePhotoFront: data.vehiclePhotoFront,
+      vehiclePhotoBack: data.vehiclePhotoBack,
+    });
 
-    vehicleStorage.saveItems(next);
-    navigate("/vehiclemaster/vehicle-entry");
+    try {
+      if (isEdit && id) {
+        formData.append("vehicleEntryId", id);
+        const response = await Put("employee/security/vehicleentry/update", formData, true);
+        if (response.data?.success) {
+          toastsuccessmsg(response.data?.message || "Vehicle entry updated successfully.");
+          navigate("/vehiclemaster/vehicle-entry");
+        } else {
+          toasterrormsg(response.data?.message || "Failed to update vehicle entry.");
+        }
+      } else {
+        const response = await Post("employee/security/vehicleentry/create", formData, true);
+        if (response.data?.success) {
+          toastsuccessmsg(response.data?.message || "Vehicle entry created successfully.");
+          navigate("/vehiclemaster/vehicle-entry");
+        } else {
+          toasterrormsg(response.data?.message || "Failed to create vehicle entry.");
+        }
+      }
+    } catch (error) {
+      toasterrormsg("Something went wrong while saving the vehicle entry.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -128,6 +182,10 @@ export default function VehicleEntryFormPage() {
                 <Input
                   {...register("vehicleNumber", {
                     required: "Vehicle number is required",
+                    pattern: {
+                      value: /^[A-Za-z0-9-]{4,15}$/,
+                      message: "Enter a valid vehicle number",
+                    },
                   })}
                   label="Vehicle Number"
                   placeholder="e.g. MH-12-AB-1234"
@@ -172,6 +230,10 @@ export default function VehicleEntryFormPage() {
                 <Input
                   {...register("mobileNumber", {
                     required: "Mobile number is required",
+                    pattern: {
+                      value: /^[0-9]{10}$/,
+                      message: "Mobile number must be 10 digits",
+                    },
                   })}
                   label="Mobile Number"
                   placeholder="Enter mobile number"
@@ -187,11 +249,13 @@ export default function VehicleEntryFormPage() {
                 <Controller
                   control={control}
                   name="driverPhoto"
+                  rules={{ required: "Driver photo is required" }}
                   render={({ field: { value, onChange } }) => (
                     <PhotoUpload
                       label="Driver Photo"
                       value={value}
                       onChange={onChange}
+                      error={errors.driverPhoto?.message as string}
                     />
                   )}
                 />
@@ -242,9 +306,12 @@ export default function VehicleEntryFormPage() {
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 <Input
-                  {...register("vehicleCondition")}
+                  {...register("vehicleCondition", {
+                    required: "Vehicle condition is required",
+                  })}
                   label="Vehicle Condition"
                   placeholder="e.g. Good, Fair"
+                  error={errors.vehicleCondition?.message}
                 />
                 <Controller
                   control={control}
@@ -280,33 +347,39 @@ export default function VehicleEntryFormPage() {
                 <Controller
                   control={control}
                   name="rcPhoto"
+                  rules={{ required: "RC photo is required" }}
                   render={({ field: { value, onChange } }) => (
                     <PhotoUpload
                       label="RC Photo"
                       value={value}
                       onChange={onChange}
+                      error={errors.rcPhoto?.message as string}
                     />
                   )}
                 />
                 <Controller
                   control={control}
                   name="vehiclePhotoFront"
+                  rules={{ required: "Front photo is required" }}
                   render={({ field: { value, onChange } }) => (
                     <PhotoUpload
                       label="Vehicle Photo (Front)"
                       value={value}
                       onChange={onChange}
+                      error={errors.vehiclePhotoFront?.message as string}
                     />
                   )}
                 />
                 <Controller
                   control={control}
                   name="vehiclePhotoBack"
+                  rules={{ required: "Back photo is required" }}
                   render={({ field: { value, onChange } }) => (
                     <PhotoUpload
                       label="Vehicle Photo (Back)"
                       value={value}
                       onChange={onChange}
+                      error={errors.vehiclePhotoBack?.message as string}
                     />
                   )}
                 />
@@ -320,8 +393,8 @@ export default function VehicleEntryFormPage() {
               >
                 Cancel
               </Button>
-              <Button type="submit" color="primary">
-                {isEdit ? "Update Entry" : "Save Entry"}
+              <Button type="submit" color="primary" disabled={submitting || loading}>
+                {submitting ? "Saving..." : isEdit ? "Update Entry" : "Save Entry"}
               </Button>
             </div>
           </div>

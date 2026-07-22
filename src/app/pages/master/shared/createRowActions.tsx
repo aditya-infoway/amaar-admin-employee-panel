@@ -9,6 +9,7 @@ import {
   ArrowRightStartOnRectangleIcon,
   EllipsisVerticalIcon,
   PencilSquareIcon,
+  PrinterIcon,
   TrashIcon,
 } from "@heroicons/react/24/outline";
 import { CellContext, Row } from "@tanstack/react-table";
@@ -21,6 +22,7 @@ export interface MasterTableMeta<T> {
   openEditDrawer?: (row: Row<T>) => void;
   deleteRow?: (row: Row<T>) => void;
   openExitDrawer?: (row: Row<T>) => void;
+  printRow?: (row: Row<T>) => void;
   canExit?: (row: T) => boolean;
 }
 
@@ -118,6 +120,11 @@ export function createRowActions<T>(_entityName: string) {
           icon={PencilSquareIcon}
           label="Edit entry"
           onClick={() => meta?.openEditDrawer?.(row)}
+        />
+        <ActionMenuItem
+          icon={PrinterIcon}
+          label="Print gate pass"
+          onClick={() => meta?.printRow?.(row)}
         />
         <div className="dark:border-dark-500 border-gray-150 mx-3 my-1.5 border-t" />
         <ActionMenuItem
