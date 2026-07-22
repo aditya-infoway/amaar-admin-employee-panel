@@ -1,9 +1,5 @@
 export interface VehicleEntry {
-  // Storage retains the full entry record, including optional legacy fields.
-  [key: string]: string | boolean;
   id: string;
-
-  // Basic Information
   entryDate: string;
   entryTime: string;
   exitTime: string;
@@ -11,31 +7,26 @@ export interface VehicleEntry {
   vehicleNumber: string;
   vehicleBrand: string;
 
-  // Driver Details
   driverName: string;
   mobileNumber: string;
   company: string;
 
-  // Visit Details
   purpose: string;
   employeeToMeet: string;
   gateNumber: string;
 
-  // Security Details (entry)
   vehicleCondition: string;
   status: string;
 
-  // Documents (entry)
-  driverPhoto: string;
-  rcPhoto: string;
-  vehiclePhotoFront: string;
-  vehiclePhotoBack: string;
+  driverPhoto: string | File;
+  rcPhoto: string | File;
+  vehiclePhotoFront: string | File;
+  vehiclePhotoBack: string | File;
 
-  // Exit Details
   exitVehicleCondition: string;
   conditionChangedAtExit: boolean;
-  exitPhotoFront: string;
-  exitPhotoBack: string;
+  exitPhotoFront: string | File;
+  exitPhotoBack: string | File;
 }
 
 export const emptyVehicle = (): VehicleEntry => ({
@@ -68,3 +59,32 @@ export const emptyVehicle = (): VehicleEntry => ({
   exitPhotoFront: "",
   exitPhotoBack: "",
 });
+
+// ---- Backend response (vehicleEntryId etc.) ko frontend shape me map karna ----
+export function mapApiVehicleEntryToVehicleEntry(api: any): VehicleEntry {
+  return {
+    id: String(api.vehicleEntryId),
+    entryDate: api.entryDate ?? "",
+    entryTime: api.entryTime ?? "",
+    exitTime: api.exitTime ?? "",
+    vehicleType: api.vehicleType ?? "",
+    vehicleNumber: api.vehicleNumber ?? "",
+    vehicleBrand: api.vehicleBrand ?? "",
+    driverName: api.driverName ?? "",
+    mobileNumber: api.mobileNumber ?? "",
+    company: api.company ?? "",
+    purpose: api.purpose ?? "",
+    employeeToMeet: api.employeeToMeet ?? "",
+    gateNumber: api.gateNumber ?? "",
+    vehicleCondition: api.vehicleCondition ?? "",
+    status: api.status ?? "IN",
+    driverPhoto: api.driverPhoto ?? "",
+    rcPhoto: api.rcPhoto ?? "",
+    vehiclePhotoFront: api.vehiclePhotoFront ?? "",
+    vehiclePhotoBack: api.vehiclePhotoBack ?? "",
+    exitVehicleCondition: api.exitVehicleCondition ?? "",
+    conditionChangedAtExit: Boolean(api.conditionChangedAtExit),
+    exitPhotoFront: api.exitPhotoFront ?? "",
+    exitPhotoBack: api.exitPhotoBack ?? "",
+  };
+}

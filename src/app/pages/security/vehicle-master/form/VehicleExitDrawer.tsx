@@ -6,21 +6,20 @@ import { XMarkIcon } from "@heroicons/react/20/solid";
 import { PhotoUpload } from "@/components/shared/form/PhotoUpload";
 import { DatePicker } from "@/components/shared/form/Datepicker";
 import { Button, Input, Switch } from "@/components/ui";
-import { vehicleStorage } from "../../../master/shared/storage";
 import { VehicleEntry } from "../data";
+
+export interface ExitFields {
+  exitTime: string;
+  exitVehicleCondition: string;
+  conditionChangedAtExit: boolean;
+  exitPhotoFront: File | string;
+  exitPhotoBack: File | string;
+}
 
 interface VehicleExitDrawerProps {
   vehicle: VehicleEntry | null;
   onClose: () => void;
-  onSaved: (updated: VehicleEntry) => void;
-}
-
-interface ExitFields {
-  exitTime: string;
-  exitVehicleCondition: string;
-  conditionChangedAtExit: boolean;
-  exitPhotoFront: string;
-  exitPhotoBack: string;
+  onSaved: (fields: ExitFields) => void;
 }
 
 function getDefaultExitFields(vehicle: VehicleEntry | null): ExitFields {
@@ -44,7 +43,7 @@ export function VehicleExitDrawer({
     control,
     watch,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<ExitFields>({
     defaultValues: getDefaultExitFields(vehicle),
   });
@@ -58,25 +57,7 @@ export function VehicleExitDrawer({
   if (!vehicle) return null;
 
   const onSubmit = (fields: ExitFields) => {
-    const items = vehicleStorage.getItems();
-    const updated: VehicleEntry = {
-      ...vehicle,
-      status: "OUT",
-      exitTime: fields.exitTime,
-      exitVehicleCondition: fields.exitVehicleCondition,
-      conditionChangedAtExit: fields.conditionChangedAtExit,
-      exitPhotoFront: fields.conditionChangedAtExit
-        ? fields.exitPhotoFront
-        : "",
-      exitPhotoBack: fields.conditionChangedAtExit ? fields.exitPhotoBack : "",
-    };
-
-    vehicleStorage.saveItems(
-      items.map((row) => (row.id === updated.id ? updated : row)),
-    );
-    onSaved(updated);
-    reset();
-    onClose();
+    onSaved(fields);
   };
 
   return (
@@ -134,21 +115,15 @@ export function VehicleExitDrawer({
                     <div className="dark:bg-dark-700 dark:border-dark-500 dark:bg-dark-700/70 grid gap-3 rounded-xl border border-gray-200 bg-gray-100/70 p-3 text-sm sm:grid-cols-2">
                       <div className="dark:bg-dark-600/60 flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 shadow-sm">
                         <span className="text-gray-500">Vehicle Number</span>
-                        <span className="font-medium">
-                          {vehicle.vehicleNumber}
-                        </span>
+                        <span className="font-medium">{vehicle.vehicleNumber}</span>
                       </div>
                       <div className="dark:bg-dark-600/60 flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 shadow-sm">
                         <span className="text-gray-500">Driver</span>
-                        <span className="font-medium">
-                          {vehicle.driverName}
-                        </span>
+                        <span className="font-medium">{vehicle.driverName}</span>
                       </div>
                       <div className="dark:bg-dark-600/60 flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 shadow-sm">
                         <span className="text-gray-500">Mobile</span>
-                        <span className="font-medium">
-                          {vehicle.mobileNumber}
-                        </span>
+                        <span className="font-medium">{vehicle.mobileNumber}</span>
                       </div>
                       <div className="dark:bg-dark-600/60 flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 shadow-sm">
                         <span className="text-gray-500">Purpose</span>
@@ -156,9 +131,7 @@ export function VehicleExitDrawer({
                       </div>
                       <div className="dark:bg-dark-600/60 flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 shadow-sm">
                         <span className="text-gray-500">Employee Met</span>
-                        <span className="font-medium">
-                          {vehicle.employeeToMeet || "—"}
-                        </span>
+                        <span className="font-medium">{vehicle.employeeToMeet || "—"}</span>
                       </div>
                       <div className="dark:bg-dark-600/60 flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 shadow-sm">
                         <span className="text-gray-500">Entry Time</span>
@@ -166,9 +139,7 @@ export function VehicleExitDrawer({
                       </div>
                       <div className="dark:bg-dark-600/60 flex min-w-0 flex-col gap-1 rounded-lg bg-white p-3 shadow-sm">
                         <span className="text-gray-500">Entry Condition</span>
-                        <span className="font-medium">
-                          {vehicle.vehicleCondition || "—"}
-                        </span>
+                        <span className="font-medium">{vehicle.vehicleCondition || "—"}</span>
                       </div>
                     </div>
                   </div>
@@ -231,6 +202,7 @@ export function VehicleExitDrawer({
                               label="Exit Photo (Front)"
                               value={value}
                               onChange={onChange}
+                              error={errors.exitPhotoFront?.message as string}
                             />
                           )}
                         />
@@ -246,6 +218,7 @@ export function VehicleExitDrawer({
                               label="Exit Photo (Back)"
                               value={value}
                               onChange={onChange}
+                              error={errors.exitPhotoBack?.message as string}
                             />
                           )}
                         />
@@ -258,8 +231,8 @@ export function VehicleExitDrawer({
                   <Button type="button" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button type="submit" color="primary">
-                    Confirm Exit
+                  <Button type="submit" color="primary" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : "Confirm Exit"}
                   </Button>
                 </div>
               </form>

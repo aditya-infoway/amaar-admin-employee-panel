@@ -1,44 +1,24 @@
-import {
-  ArrowPathIcon,
-  ChevronLeftIcon,
-  ClockIcon,
-  InformationCircleIcon,
-  PaperAirplaneIcon,
-  PrinterIcon,
-  ShieldCheckIcon,
-} from "@heroicons/react/20/solid";
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Country, State, City } from "country-state-city";
 import { Controller, useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router";
+import { ChevronLeftIcon } from "@heroicons/react/20/solid";
+import { Link, useNavigate, useParams } from "react-router";
 
 import { Page } from "@/components/shared/Page";
-import { Stepper } from "@/components/shared/Stepper";
 import { DatePicker } from "@/components/shared/form/Datepicker";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { PhotoUpload } from "@/components/shared/form/PhotoUpload";
 import { Button, Card, Input, Switch } from "@/components/ui";
-import { Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
+import { Get, Put, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
 import {
   gateOptions,
   genderOptions,
   idProofTypeOptions,
 } from "../../../master/shared/constants";
 import { buildFormData } from "../../../master/shared/toFormData";
-import {
-  emptyVisitor,
-  generateBadgeNumber,
-  generateGatePassNumber,
-  generateOtp,
-  mapApiVisitorEntryToVisitorEntry,
-  VisitorEntry,
-} from "../data";
-import { GatePassCard } from "./GatePassCard";
-import { printGatePass } from "./gatePassPrint";
+import { emptyVisitor, VisitorEntry } from "../data";
 
-const STEP_LABELS = ["Visitor Details", "Send OTP", "Verify OTP", "Gate Pass"];
-
-const STEP1_REQUIRED_FIELDS = [
+const REQUIRED_FIELDS = [
   "fullName",
   "gender",
   "mobileNumber",
@@ -51,13 +31,11 @@ const STEP1_REQUIRED_FIELDS = [
   "visitorPhoto",
 ] as const;
 
-export default function VisitorEntryWizard() {
+export default function VisitorEntryEditForm() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [entry, setEntry] = useState<VisitorEntry | null>(null);
-  const [otpInput, setOtpInput] = useState("");
-  const [otpError, setOtpError] = useState(false);
-  const [submitting, setSubmitting] = useState(false); // ab ye final-save (OTP verify) ke liye use hoga
+  const { id } = useParams<{ id: string }>();
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
   const {
     register,
@@ -66,6 +44,7 @@ export default function VisitorEntryWizard() {
     trigger,
     getValues,
     setValue,
+    reset,
     formState: { errors },
   } = useForm<VisitorEntry>({
     defaultValues: emptyVisitor(),
@@ -73,7 +52,6 @@ export default function VisitorEntryWizard() {
 
   const vehicleAvailable = watch("vehicleAvailable");
 
-  // ===== isoCode sirf state/city filter karne ke liye — form/DB me kabhi nahi jaata =====
   const [selectedCountryCode, setSelectedCountryCode] = useState("");
   const [selectedStateCode, setSelectedStateCode] = useState("");
 
@@ -98,47 +76,57 @@ export default function VisitorEntryWizard() {
     }));
   }, [selectedCountryCode, selectedStateCode]);
 
-  // ---- Step 1: Visitor Details -> AB YAHA KOI API CALL NAHI, sirf local draft banega ----
-  const handleStep1Next = async () => {
-    const valid = await trigger(STEP1_REQUIRED_FIELDS as unknown as string[]);
+  // ---- Existing entry fetch karo (edit ke liye prefill) ----
+  useEffect(() => {
+    if (!id) return;
+    (async () => {
+      setLoading(true);
+      try {
+        const response = await Get(`employee/security/visitorentry/${id}`, {}, false);
+        if (response.data?.success) {
+          const api = response.data.data;
+          reset({
+            ...emptyVisitor(),
+            ...api,
+            id: String(api.visitorEntryId ?? id),
+          });
+
+          // country/state dropdown chain ko sync karo taaki state/city list turant dikhe
+          if (api.country) {
+            const countryMatch = Country.getAllCountries().find((c) => c.name === api.country);
+            if (countryMatch) {
+              setSelectedCountryCode(countryMatch.isoCode);
+              if (api.state) {
+                const stateMatch = State.getStatesOfCountry(countryMatch.isoCode).find(
+                  (s) => s.name === api.state,
+                );
+                if (stateMatch) setSelectedStateCode(stateMatch.isoCode);
+              }
+            }
+          }
+        } else {
+          toasterrormsg(response.data?.message || "Failed to load visitor entry.");
+          navigate("/visitoremaster/visitore-entry");
+        }
+      } catch (error) {
+        toasterrormsg("Something went wrong while loading the visitor entry.");
+        navigate("/visitoremaster/visitore-entry");
+      } finally {
+        setLoading(false);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // ---- Update API call ----
+  const handleSave = async () => {
+    const valid = await trigger(REQUIRED_FIELDS as unknown as string[]);
     if (!valid) return;
+    if (!id) return;
 
-    const values = getValues();
-    const draft: VisitorEntry = {
-      ...values,
-      id: "",
-      status: "HOLD",
-    };
-    setEntry(draft);
-    setStep(2);
-  };
-
-  // ---- Step 2: OTP generate — 100% frontend, koi API call nahi ----
-  const handleSendOtp = () => {
-    if (!entry) return;
-    const updated: VisitorEntry = {
-      ...entry,
-      otp: generateOtp(),
-      otpGeneratedAt: new Date().toISOString(),
-    };
-    setEntry(updated);
-  };
-
-  const handleResendOtp = () => handleSendOtp();
-
-  // ---- Step 3: OTP verify (frontend check) — match hote hi YAHAN Create API call hogi ----
-  const handleVerifyOtp = async () => {
-    if (!entry) return;
-    if (otpInput.trim() !== entry.otp) {
-      setOtpError(true);
-      return;
-    }
-    setOtpError(false);
-    setSubmitting(true);
-
+    setSaving(true);
     const values = getValues();
     const formData = buildFormData({
-      visitorId: values.visitorId,
       fullName: values.fullName,
       gender: values.gender,
       mobileNumber: values.mobileNumber,
@@ -182,36 +170,26 @@ export default function VisitorEntryWizard() {
     });
 
     try {
-      const response = await Post("employee/security/visitorentry/create", formData, true);
+      const response = await Put(`employee/security/visitorentry/update/${id}`, formData, true);
       if (response.data?.success) {
-        const saved = mapApiVisitorEntryToVisitorEntry(response.data.data);
-        const finalEntry: VisitorEntry = {
-          ...saved, // ✅ status "IN" aur checkInTime (Entry Time se) yahi se aayega — overwrite mat karo
-          otp: entry.otp,
-          otpGeneratedAt: entry.otpGeneratedAt,
-          badgeNumber: generateBadgeNumber(),
-          gatePassNumber: generateGatePassNumber(),
-          gatePassIssuedAt: new Date().toISOString(),
-        };
-        setEntry(finalEntry);
-        toastsuccessmsg(response.data?.message || "Visitor entry saved successfully.");
-        setStep(4);
+        toastsuccessmsg(response.data?.message || "Visitor entry updated successfully.");
+        navigate("/visitoremaster/visitore-entry");
       } else {
-        toasterrormsg(response.data?.message || "Failed to save visitor entry.");
+        toasterrormsg(response.data?.message || "Failed to update visitor entry.");
       }
     } catch (error) {
-      toasterrormsg("Something went wrong while saving the visitor entry.");
+      toasterrormsg("Something went wrong while updating the visitor entry.");
     } finally {
-      setSubmitting(false);
+      setSaving(false);
     }
   };
 
   return (
-    <Page title="New Visitor Entry">
+    <Page title="Edit Visitor Entry">
       <div className="transition-content mx-auto w-full px-(--margin-x) pb-8">
         <div className="flex items-center justify-between py-5 lg:py-6">
           <h2 className="dark:text-dark-50 border-primary text-primary border-b-4 text-xl font-bold tracking-wide lg:text-2xl">
-            New Visitor Entry
+            Edit Visitor Entry
           </h2>
           <Link to="/visitoremaster/visitore-entry">
             <Button color="primary" variant="outlined">
@@ -221,12 +199,9 @@ export default function VisitorEntryWizard() {
           </Link>
         </div>
 
-        <Card className="mb-6 p-4 sm:p-6">
-          <Stepper steps={STEP_LABELS} currentStep={step} />
-        </Card>
-
-        {/* ---------------- STEP 1 ---------------- */}
-        {step === 1 && (
+        {loading ? (
+          <Card className="p-6 text-center text-sm text-gray-500">Loading visitor entry...</Card>
+        ) : (
           <div className="space-y-6">
             <Card className="space-y-4 p-4 sm:p-6">
               <h3 className="dark:text-dark-100 text-lg font-medium text-gray-800">
@@ -545,176 +520,29 @@ export default function VisitorEntryWizard() {
                   )}
                 />
               </div>
-              // Visitor Photo Controller me rules add karo aur error dikhao
               <Controller
                 control={control}
                 name="visitorPhoto"
                 rules={{
-                  validate: (value) => (value ? true : "Visitor photo is required"),
+                    validate: (value) => (value ? true : "Visitor photo is required"),
                 }}
                 render={({ field: { value, onChange } }) => (
-                  <PhotoUpload
+                    <PhotoUpload
                     label="Visitor Photo"
                     value={value}
                     onChange={onChange}
                     error={errors.visitorPhoto?.message as string | undefined}
-                  />
+                    />
                 )}
-              />
+                />
             </Card>
 
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" onClick={() => navigate("/visitoremaster/visitore-entry")}>
                 Cancel
               </Button>
-              <Button type="button" color="primary" onClick={handleStep1Next}>
-                Next: Send OTP
-              </Button>
-            </div>
-          </div>
-        )}
-
-        {/* ---------------- STEP 2: SEND OTP ---------------- */}
-        {step === 2 && entry && (
-          <Card className="mx-auto max-w-5xl overflow-hidden p-0">
-            <div className="border-primary/10 from-primary/10 dark:from-primary/15 border-b bg-gradient-to-r to-transparent px-5 py-6 sm:px-8">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="bg-primary text-primary-content flex size-12 shrink-0 items-center justify-center rounded-xl text-white shadow-sm">
-                    <PaperAirplaneIcon className="size-6" />
-                  </div>
-                  <div>
-                    <p className="text-primary text-xs font-semibold tracking-[0.16em] uppercase">Step 2 of 4</p>
-                    <h3 className="dark:text-dark-100 mt-1 text-xl font-semibold text-gray-800">Send approval code</h3>
-                    <p className="mt-1 text-sm text-gray-500">Review the visit details, then send a one-time code to the host.</p>
-                  </div>
-                </div>
-                <div className="border-primary/15 bg-primary/5 text-primary inline-flex w-fit items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium">
-                  <ClockIcon className="size-4" /> Awaiting host confirmation
-                </div>
-              </div>
-            </div>
-
-            <div className="space-y-6 p-5 sm:p-8">
-              <div className="dark:bg-dark-700 grid gap-4 rounded-xl border border-gray-200 bg-gray-50 p-5 dark:border-dark-600 sm:grid-cols-2">
-                <div>
-                  <p className="text-primary text-xs font-semibold tracking-wide uppercase">Visitor</p>
-                  <p className="dark:text-dark-100 font-medium text-gray-800">{entry.fullName}</p>
-                </div>
-                <div>
-                  <p className="text-primary text-xs font-semibold tracking-wide uppercase">Host to notify</p>
-                  <p className="dark:text-dark-100 font-medium text-gray-800">
-                    {entry.personToMeet} {entry.department && `· ${entry.department}`}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-primary text-xs font-semibold tracking-wide uppercase">Purpose of visit</p>
-                  <p className="dark:text-dark-100 font-medium text-gray-800">{entry.purpose}</p>
-                </div>
-                <div>
-                  <p className="text-primary text-xs font-semibold tracking-wide uppercase">Visitor mobile</p>
-                  <p className="dark:text-dark-100 font-medium text-gray-800">{entry.mobileNumber}</p>
-                </div>
-              </div>
-
-              {!entry.otp ? (
-                <div className="border-primary/20 bg-primary/5 rounded-xl border p-4 sm:flex sm:items-center sm:justify-between sm:gap-6">
-                  <div className="flex gap-3">
-                    <InformationCircleIcon className="text-primary mt-0.5 size-5 shrink-0" />
-                    <div>
-                      <p className="dark:text-dark-100 text-sm font-semibold text-gray-800">
-                        Ready to notify {entry.personToMeet}
-                      </p>
-                      <p className="mt-1 text-xs leading-5 text-gray-500">
-                        The host receives the code and shares it with the visitor for verification at the gate.
-                      </p>
-                    </div>
-                  </div>
-                  <Button color="primary" className="mt-4 w-full sm:mt-0 sm:w-auto" onClick={handleSendOtp}>
-                    <PaperAirplaneIcon className="size-4" /> Send OTP to host
-                  </Button>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  <div className="border-primary/30 bg-primary/5 rounded-lg border border-dashed p-4 text-center">
-                    <p className="text-xs text-gray-500">
-                      Employee's device shows this OTP — they must tell it to the visitor
-                    </p>
-                    <p className="text-primary mt-1 text-2xl font-bold tracking-[0.3em]">{entry.otp}</p>
-                    <p className="mt-1 text-[11px] text-gray-400">
-                      Sent {new Date(entry.otpGeneratedAt).toLocaleTimeString()}
-                    </p>
-                  </div>
-                  <div className="flex gap-3">
-                    <Button variant="outlined" onClick={handleResendOtp} className="flex-1">
-                      <ArrowPathIcon className="size-4" /> Resend OTP
-                    </Button>
-                    <Button color="primary" onClick={() => setStep(3)} className="flex-1">
-                      Continue to Verification
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              <div className="flex justify-start">
-                <Button variant="outlined" onClick={() => setStep(1)}>
-                  <ChevronLeftIcon className="size-4" /> Back
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
-
-        {/* ---------------- STEP 3: VERIFY OTP (yahi par Create API call hoti hai) ---------------- */}
-        {step === 3 && entry && (
-          <Card className="space-y-6 p-6 sm:p-8">
-            <div className="text-center">
-              <div className="bg-primary/10 mx-auto flex size-14 items-center justify-center rounded-full">
-                <ShieldCheckIcon className="text-primary size-7" />
-              </div>
-              <h3 className="dark:text-dark-100 mt-3 text-lg font-semibold text-gray-800">
-                Verify OTP at Gate
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Ask the visitor for the 6-digit code the employee shared, then enter it below.
-              </p>
-            </div>
-
-            <div className="mx-auto max-w-xs space-y-3">
-              <Input
-                value={otpInput}
-                onChange={(e) => {
-                  setOtpInput(e.target.value);
-                  setOtpError(false);
-                }}
-                placeholder="Enter 6-digit OTP"
-                maxLength={6}
-                className="text-center text-lg tracking-[0.4em]"
-                error={otpError ? "Incorrect OTP. Please try again." : undefined}
-              />
-              <Button color="primary" className="w-full" disabled={submitting} onClick={handleVerifyOtp}>
-                {submitting ? "Saving..." : "Verify & Check In"}
-              </Button>
-            </div>
-
-            <div className="flex justify-start">
-              <Button variant="outlined" disabled={submitting} onClick={() => setStep(2)}>
-                <ChevronLeftIcon className="size-4" /> Back
-              </Button>
-            </div>
-          </Card>
-        )}
-
-        {/* ---------------- STEP 4: GATE PASS ---------------- */}
-        {step === 4 && entry && (
-          <div className="space-y-6">
-            <GatePassCard visitor={entry} />
-            <div className="flex justify-center gap-3">
-              <Button color="primary" onClick={() => printGatePass(entry)}>
-                <PrinterIcon className="size-4" /> Print Gate Pass
-              </Button>
-              <Button variant="outlined" onClick={() => navigate("/visitoremaster/visitore-entry")}>
-                Done
+              <Button type="button" color="primary" disabled={saving} onClick={handleSave}>
+                {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>

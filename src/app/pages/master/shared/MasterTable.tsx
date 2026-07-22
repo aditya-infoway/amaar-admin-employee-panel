@@ -20,8 +20,8 @@ export function MasterTable<T>({
 
   return (
     <div className="transition-content relative mt-4 px-(--margin-x)">
-      <Card className="overflow-hidden">
-        <div className="table-wrapper min-w-full overflow-x-auto">
+      <Card className="">
+        <div className="table-wrapper min-w-full overflow-x-visible">
           <UiTable hoverable className="w-full text-left rtl:text-right">
             <THead>
               {table.getHeaderGroups().map((headerGroup) => (

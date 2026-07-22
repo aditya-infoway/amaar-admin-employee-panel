@@ -1,20 +1,37 @@
 import { PhotoIcon, XMarkIcon } from "@heroicons/react/24/outline";
-import { useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface PhotoUploadProps {
   label: string;
-  value?: string;
-  onChange: (value: string) => void;
+  value?: string | File;
+  onChange: (value: string | File) => void;
+  error?: string;
 }
 
-export function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
+export function PhotoUpload({ label, value, onChange, error }: PhotoUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>("");
+
+  // value File ho (naya select kiya photo) ya string ho (existing/edit mode ka path) — dono handle karo
+  useEffect(() => {
+    if (value instanceof File) {
+      const objectUrl = URL.createObjectURL(value);
+      setPreviewUrl(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl); // memory leak se bachne ke liye cleanup
+    }
+    if (typeof value === "string" && value) {
+      setPreviewUrl(value);
+      return;
+    }
+    setPreviewUrl("");
+  }, [value]);
 
   const handleFile = (file?: File) => {
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onChange(reader.result as string);
-    reader.readAsDataURL(file);
+    // YAHI FIX HAI: pehle base64 string bhejte the (reader.readAsDataURL),
+    // ab seedha File object bhejo — taaki FormData me ye actual "file" ki tarah jaaye
+    // aur backend ke multer isko req.files me pakde, req.body me nahi.
+    onChange(file);
   };
 
   return (
@@ -24,15 +41,15 @@ export function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
       </span>
       <div
         onClick={() => inputRef.current?.click()}
-        className="dark:border-dark-450 dark:hover:border-dark-300 relative flex h-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed border-gray-300 bg-gray-50 transition-colors hover:border-gray-400 dark:bg-dark-700"
+        className={`dark:hover:border-dark-300 relative flex h-28 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-lg border-2 border-dashed bg-gray-50 transition-colors hover:border-gray-400 dark:bg-dark-700 ${
+          error
+            ? "border-red-500 dark:border-red-500"
+            : "border-gray-300 dark:border-dark-450"
+        }`}
       >
-        {value ? (
+        {previewUrl ? (
           <>
-            <img
-              src={value}
-              alt={label}
-              className="h-full w-full object-cover"
-            />
+            <img src={previewUrl} alt={label} className="h-full w-full object-cover" />
             <button
               type="button"
               onClick={(e) => {
@@ -60,6 +77,7 @@ export function PhotoUpload({ label, value, onChange }: PhotoUploadProps) {
           onChange={(e) => handleFile(e.target.files?.[0])}
         />
       </div>
+      {error && <p className="mt-1 text-xs text-red-500">{error}</p>}
     </div>
   );
 }

@@ -11,6 +11,7 @@ export interface VisitorEntry {
   email: string;
   company: string;
   address: string;
+  country: string;
   city: string;
   state: string;
   pincode: string;
@@ -97,6 +98,7 @@ export const emptyVisitor = (): VisitorEntry => ({
   company: "",
   address: "",
   city: "",
+  country: "",
   state: "",
   pincode: "",
 
@@ -149,3 +151,71 @@ export const emptyVisitor = (): VisitorEntry => ({
   badgeReturned: false,
   exitRemarks: "",
 });
+
+// ---- Backend response (visitorEntryId etc.) ko frontend shape me map karna ----
+export function mapApiVisitorEntryToVisitorEntry(api: any): VisitorEntry {
+  return {
+    id: String(api.visitorEntryId),
+    visitorId: api.visitorId ?? "",
+
+    fullName: api.fullName ?? "",
+    gender: api.gender ?? "",
+    mobileNumber: api.mobileNumber ?? "",
+    email: api.email ?? "",
+    company: api.company ?? "",
+    address: api.address ?? "",
+    country: api.country ?? "",
+    state: api.state ?? "",
+    city: api.city ?? "",
+    pincode: api.pincode ?? "",
+
+    idProofType: api.idProofType ?? "",
+    idProofNumber: api.idProofNumber ?? "",
+    idFrontPhoto: api.idFrontPhoto ?? "",
+    idBackPhoto: api.idBackPhoto ?? "",
+
+    visitDate: api.visitDate ?? "",
+    entryTime: api.entryTime ?? "",
+    exitTime: api.exitTime ?? "",
+    purpose: api.purpose ?? "",
+    department: api.department ?? "",
+    personToMeet: api.personToMeet ?? "",
+    employeeId: api.employeeId ?? "",
+    duration: api.duration ?? "",
+
+    numberOfPersons: api.numberOfPersons ?? "",
+    adultCount: api.adultCount ?? "",
+    childCount: api.childCount ?? "",
+    accompanyingPerson: api.accompanyingPerson ?? "",
+    vehicleAvailable: Boolean(api.vehicleAvailable),
+    vehicleNumber: api.vehicleNumber ?? "",
+    previousVisit: Boolean(api.previousVisit),
+    frequentVisitor: Boolean(api.frequentVisitor),
+
+    gate: api.gate ?? "",
+    securityGuard: api.securityGuard ?? "",
+    mobileCount: api.mobileCount ?? "",
+    allowedAreas: api.allowedAreas ?? "",
+    restrictedAreas: api.restrictedAreas ?? "",
+    otherItems: api.otherItems ?? "",
+    bagChecked: Boolean(api.bagChecked),
+    laptop: Boolean(api.laptop),
+    camera: Boolean(api.camera),
+    visitorPhoto: api.visitorPhoto ?? "",
+
+    otp: api.otp ?? "",
+    otpGeneratedAt: api.otpGeneratedAt ?? "",
+    otpVerified: Boolean(api.otpVerified),
+    checkInTime: api.checkInTime ?? "",
+    checkOutTime: api.checkOutTime ?? "",
+    status: api.status ?? "HOLD",
+
+    badgeNumber: api.badgeNumber ?? "",
+    gatePassNumber: api.gatePassNumber ?? "",
+    gatePassIssuedAt: api.gatePassIssuedAt ?? "",
+
+    exitGate: api.exitGate ?? "",
+    badgeReturned: Boolean(api.badgeReturned),
+    exitRemarks: api.exitRemarks ?? "",
+  };
+}

@@ -8,13 +8,14 @@ import {
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
 
 import { Page } from "@/components/shared/Page";
 import { Input } from "@/components/ui";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { fuzzyFilter } from "@/utils/react-table/fuzzyFilter";
+import { Get, Put, Delete, toastsuccessmsg, toasterrormsg } from "@/ApiHelper";
 import { exportToExcel, exportToPdf } from "../../master/shared/export";
 import { MasterTable } from "../../master/shared/MasterTable";
 import { MasterToolbar } from "../../master/shared/MasterToolbar";
@@ -23,10 +24,10 @@ import {
   gateOptions,
   vehicleTypeOptions,
 } from "../../master/shared/constants";
-import { vehicleStorage } from "../../master/shared/storage";
+import { buildFormData } from "../../master/shared/toFormData";
 import { createColumns, exportColumns } from "./columns";
-import { VehicleEntry } from "./data";
-import { VehicleExitDrawer } from "./form/VehicleExitDrawer";
+import { mapApiVehicleEntryToVehicleEntry, VehicleEntry } from "./data";
+import { VehicleExitDrawer, ExitFields } from "./form/VehicleExitDrawer";
 
 function getLabel(
   options: { id: string; label: string }[],
@@ -37,9 +38,8 @@ function getLabel(
 
 export default function VehicleEntryListPage() {
   const navigate = useNavigate();
-  const [data, setData] = useState<VehicleEntry[]>(() =>
-    vehicleStorage.getItems(),
-  );
+  const [data, setData] = useState<VehicleEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -48,6 +48,27 @@ export default function VehicleEntryListPage() {
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [exitVehicle, setExitVehicle] = useState<VehicleEntry | null>(null);
+
+  const fetchList = async () => {
+    setLoading(true);
+    try {
+      const response = await Get("employee/security/vehicleentry/list", {}, false);
+      if (response.data?.success) {
+        setData((response.data.data || []).map(mapApiVehicleEntryToVehicleEntry));
+      } else {
+        toasterrormsg(response.data?.message || "Failed to fetch vehicle entries.");
+      }
+    } catch (error) {
+      toasterrormsg("Something went wrong while fetching vehicle entries.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchList();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const columns = useMemo(
     () => createColumns(getLabel, vehicleTypeOptions, entryStatusOptions),
@@ -77,12 +98,65 @@ export default function VehicleEntryListPage() {
     statusLabel: getLabel(entryStatusOptions, row.status),
   }));
 
-  const persist = (next: VehicleEntry[]) => {
-    setData(next);
-    vehicleStorage.saveItems(next);
+  const handleDeleteOne = async (row: VehicleEntry) => {
+    try {
+      const response = await Delete(
+        "employee/security/vehicleentry/delete",
+        { vehicleEntryId: Number(row.id) },
+        false
+      );
+      if (response.data?.success) {
+        toastsuccessmsg(response.data?.message || "Vehicle entry deleted successfully.");
+        setData((prev) => prev.filter((item) => item.id !== row.id));
+      } else {
+        toasterrormsg(response.data?.message || "Failed to delete vehicle entry.");
+      }
+    } catch (error) {
+      toasterrormsg("Something went wrong while deleting the vehicle entry.");
+    }
   };
 
-  const table = useReactTable({   
+  const handleDeleteMany = async (rows: { original: VehicleEntry }[]) => {
+    try {
+      await Promise.all(
+        rows.map((r) =>
+          Delete("employee/security/vehicleentry/delete", { vehicleEntryId: Number(r.original.id) }, false)
+        )
+      );
+      const ids = new Set(rows.map((r) => r.original.id));
+      setData((prev) => prev.filter((item) => !ids.has(item.id)));
+      setRowSelection({});
+      toastsuccessmsg("Selected vehicle entries deleted successfully.");
+    } catch (error) {
+      toasterrormsg("Something went wrong while deleting vehicle entries.");
+    }
+  };
+
+  const handleExitSaved = async (vehicleId: string, fields: ExitFields) => {
+    const formData = buildFormData({
+      vehicleEntryId: vehicleId,
+      exitTime: fields.exitTime,
+      exitVehicleCondition: fields.exitVehicleCondition,
+      conditionChangedAtExit: fields.conditionChangedAtExit,
+      exitPhotoFront: fields.conditionChangedAtExit ? fields.exitPhotoFront : undefined,
+      exitPhotoBack: fields.conditionChangedAtExit ? fields.exitPhotoBack : undefined,
+    });
+
+    try {
+      const response = await Put("employee/security/vehicleentry/exit", formData, true);
+      if (response.data?.success) {
+        toastsuccessmsg(response.data?.message || "Vehicle exit marked successfully.");
+        setExitVehicle(null);
+        fetchList();
+      } else {
+        toasterrormsg(response.data?.message || "Failed to mark vehicle exit.");
+      }
+    } catch (error) {
+      toasterrormsg("Something went wrong while marking vehicle exit.");
+    }
+  };
+
+  const table = useReactTable({
     data: filteredData,
     columns,
     state: { globalFilter, sorting, rowSelection },
@@ -93,13 +167,8 @@ export default function VehicleEntryListPage() {
         navigate(`/vehiclemaster/edit/${row.original.id}`),
       openExitDrawer: (row: Row<VehicleEntry>) =>
         setExitVehicle(row.original),
-      deleteRow: (row: Row<VehicleEntry>) =>
-        persist(data.filter((item) => item.id !== row.original.id)),
-      deleteRows: (rows: Row<VehicleEntry>[]) => {
-        const ids = new Set(rows.map((r) => r.original.id));
-        persist(data.filter((item) => !ids.has(item.id)));
-        setRowSelection({});
-      },
+      deleteRow: (row: Row<VehicleEntry>) => handleDeleteOne(row.original),
+      deleteRows: (rows: Row<VehicleEntry>[]) => handleDeleteMany(rows),
     },
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
@@ -172,16 +241,18 @@ export default function VehicleEntryListPage() {
         <MasterTable
           table={table}
           columnCount={columns.length}
-          emptyMessage="No vehicle entries found. Click New Vehicle Entry to add one."
+          emptyMessage={
+            loading
+              ? "Loading vehicle entries..."
+              : "No vehicle entries found. Click New Vehicle Entry to add one."
+          }
         />
       </div>
 
       <VehicleExitDrawer
         vehicle={exitVehicle}
         onClose={() => setExitVehicle(null)}
-        onSaved={(updated) =>
-          persist(data.map((item) => (item.id === updated.id ? updated : item)))
-        }
+        onSaved={(fields) => exitVehicle && handleExitSaved(exitVehicle.id, fields)}
       />
     </Page>
   );

@@ -6,14 +6,14 @@ import { XMarkIcon } from "@heroicons/react/20/solid";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { DatePicker } from "@/components/shared/form/Datepicker";
 import { Button, Switch, Textarea } from "@/components/ui";
+import { Put, toastsuccessmsg, toasterrormsg } from "@/ApiHelper";
 import { gateOptions } from "../../../master/shared/constants";
-import { visitorStorage } from "../../../master/shared/storage";
 import { VisitorEntry } from "../data";
 
 interface VisitorExitDrawerProps {
   visitor: VisitorEntry | null;
   onClose: () => void;
-  onSaved: (updated: VisitorEntry) => void;
+  onSaved: () => void;
 }
 
 interface ExitFields {
@@ -53,7 +53,13 @@ export function VisitorExitDrawer({
   onClose,
   onSaved,
 }: VisitorExitDrawerProps) {
-  const { register, handleSubmit, control, reset } = useForm<ExitFields>({
+  const {
+    register,
+    handleSubmit,
+    control,
+    reset,
+    formState: { isSubmitting },
+  } = useForm<ExitFields>({
     defaultValues: getDefaultExitFields(visitor),
   });
 
@@ -63,24 +69,30 @@ export function VisitorExitDrawer({
 
   if (!visitor) return null;
 
-  const onSubmit = (fields: ExitFields) => {
-    const items = visitorStorage.getItems();
-    const updated: VisitorEntry = {
-      ...visitor,
-      status: "OUT",
-      exitTime: fields.exitTime,
-      checkOutTime: new Date().toISOString(),
-      exitGate: fields.exitGate,
-      badgeReturned: fields.badgeReturned,
-      exitRemarks: fields.exitRemarks,
-    };
-
-    visitorStorage.saveItems(
-      items.map((row) => (row.id === updated.id ? updated : row)),
-    );
-    onSaved(updated);
-    reset();
-    onClose();
+  // ---- Exit API call ----
+  const onSubmit = async (fields: ExitFields) => {
+    try {
+      const response = await Put(
+        "employee/security/visitorentry/exit",
+        {
+          visitorEntryId: visitor.id,
+          exitTime: fields.exitTime,
+          exitGate: fields.exitGate,
+          badgeReturned: fields.badgeReturned,
+          exitRemarks: fields.exitRemarks,
+        },
+        false,
+      );
+      if (response.data?.success) {
+        toastsuccessmsg(response.data?.message || "Visitor exit marked successfully.");
+        reset();
+        onSaved();
+      } else {
+        toasterrormsg(response.data?.message || "Failed to mark visitor exit.");
+      }
+    } catch (error) {
+      toasterrormsg("Something went wrong while marking visitor exit.");
+    }
   };
 
   return (
@@ -254,8 +266,8 @@ export function VisitorExitDrawer({
                   <Button type="button" onClick={onClose}>
                     Cancel
                   </Button>
-                  <Button type="submit" color="primary">
-                    Confirm Exit
+                  <Button type="submit" color="primary" disabled={isSubmitting}>
+                    {isSubmitting ? "Saving..." : "Confirm Exit"}
                   </Button>
                 </div>
               </form>
