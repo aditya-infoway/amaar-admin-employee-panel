@@ -22,6 +22,7 @@ export function printGatePass(visitor: VisitorEntry) {
     <!DOCTYPE html>
     <html>
       <head>
+        <meta charset="UTF-8" />
         <title>Gate Pass - ${visitor.gatePassNumber}</title>
         <style>
           * { box-sizing: border-box; font-family: Arial, Helvetica, sans-serif; }
