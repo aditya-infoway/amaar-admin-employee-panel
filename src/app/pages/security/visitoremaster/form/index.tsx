@@ -27,8 +27,6 @@ import {
 import { buildFormData } from "../../../master/shared/toFormData";
 import {
   emptyVisitor,
-  generateBadgeNumber,
-  generateGatePassNumber,
   generateOtp,
   mapApiVisitorEntryToVisitorEntry,
   VisitorEntry,
@@ -186,12 +184,9 @@ export default function VisitorEntryWizard() {
       if (response.data?.success) {
         const saved = mapApiVisitorEntryToVisitorEntry(response.data.data);
         const finalEntry: VisitorEntry = {
-          ...saved, // ✅ status "IN" aur checkInTime (Entry Time se) yahi se aayega — overwrite mat karo
+          ...saved, // ✅ badgeNumber, gatePassNumber, gatePassIssuedAt — sab ab backend se aa raha hai
           otp: entry.otp,
           otpGeneratedAt: entry.otpGeneratedAt,
-          badgeNumber: generateBadgeNumber(),
-          gatePassNumber: generateGatePassNumber(),
-          gatePassIssuedAt: new Date().toISOString(),
         };
         setEntry(finalEntry);
         toastsuccessmsg(response.data?.message || "Visitor entry saved successfully.");
@@ -545,7 +540,7 @@ export default function VisitorEntryWizard() {
                   )}
                 />
               </div>
-              // Visitor Photo Controller me rules add karo aur error dikhao
+              
               <Controller
                 control={control}
                 name="visitorPhoto"
