@@ -14,24 +14,6 @@ export const baseNavigationObj: Record<string, NavigationTree> = {
     icon: "dashboards",
   },
 
-  // Vehicle Master
-  vehicleMaster: {
-    id: "vehicleMaster",
-    type: "collapse",
-    path: "/vehiclemaster",
-    title: "Vehicle Master",
-    icon: "vehicleMaster",
-  },
-
-  // Visitor Master
-  visitoreMaster: {
-    id: "visitoreMaster",
-    type: "collapse",
-    path: "/visitoremaster",
-    title: "Visitor Master",
-    icon: "visitoreMaster",
-  },
-
   logout: {
     id: "logout",
     type: "item",

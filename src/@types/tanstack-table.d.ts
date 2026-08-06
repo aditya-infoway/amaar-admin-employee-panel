@@ -8,7 +8,7 @@ declare module "@tanstack/react-table" {
     deleteRow?: (row: Row<TData>) => void;
     deleteRows?: (rows: Row<TData>[]) => void;
     // openEditDrawer?: (row: TData) => void;
-    openEditDrawer?: (row: Row<TData>) => void;
+    openEditDrawer?: (row: TData) => void;
     openExitDrawer?: (row: Row<TData>) => void;
     printRow?: (row: Row<TData>) => void;
     viewRow?: (row: TData) => void;
