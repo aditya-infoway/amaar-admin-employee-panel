@@ -27,7 +27,7 @@ import { useThemeContext } from "@/app/contexts/theme/context";
 import { createScopedKeydownHandler } from "@/utils/dom/createScopedKeydownHandler";
 import { useNavigation } from "@/app/navigation";
 import { Highlight } from "@/components/shared/Highlight";
-import { settings } from "@/app/navigation/segments/security/settings";
+import { settings } from "@/app/navigation/segments/settings";
 import { ColorType } from "@/constants/app";
 import { NavigationTree } from "@/@types/navigation";
 

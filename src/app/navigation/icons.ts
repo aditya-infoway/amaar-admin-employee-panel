@@ -25,8 +25,8 @@ import {
   ShoppingCartIcon,
   CubeTransparentIcon,
   UsersIcon,
-  TruckIcon,
   IdentificationIcon,
+  UserGroupIcon
 } from "@heroicons/react/24/outline";
 import { ElementType } from "react";
 
@@ -43,8 +43,8 @@ export const navigationIcons: Record<string, ElementType> = {
   "dashboards.home": HomeIcon,
 
   // Vehicle Master
-  vehicleMaster: TruckIcon,
-  "vehicleMaster.list": TruckIcon,
+  vehicleMaster: ShoppingCartIcon,
+  "vehicleMaster.list": ShoppingCartIcon,
   "vehicleMaster.exit": ArrowRightStartOnRectangleIcon,
 
   // Visitor Master
@@ -69,6 +69,12 @@ export const navigationIcons: Record<string, ElementType> = {
 
   itemMaster: CubeIcon,
   "itemMaster.list": CubeIcon,
+
+  leadMaster: UserGroupIcon,
+  "leadMaster.list": UserGroupIcon,
+
+  followups: TbUsers,
+  "followups.list": TbUsers,
 
   // User Master
   userMaster: UsersIcon,
