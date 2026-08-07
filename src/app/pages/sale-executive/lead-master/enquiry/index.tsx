@@ -120,8 +120,8 @@ export default function EnquiryPage() {
     enableRowSelection: true,
     getRowId: (row) => row.id,
     meta: {
-      openEditDrawer: (enquiry: Enquiry) => {
-        setEditing(enquiry);
+      openEditDrawer: (row: Row<Enquiry>) => {
+        setEditing(row.original);
         setDrawerOpen(true);
       },
       deleteRow: (row: Row<Enquiry>) => handleDeleteOne(row.original),

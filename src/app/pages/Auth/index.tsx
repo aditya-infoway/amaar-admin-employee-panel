@@ -39,12 +39,12 @@ export default function SignIn() {
 
   return (
     <Page title="Login">
-      <main className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-dark-200">
+      <main className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="w-full">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 overflow-hidden min-h-screen">
             {/* Left Side - Form */}
-            <div className="p-6 sm:p-8 lg:p-10 bg-white dark:bg-dark-100 flex items-center justify-center">
-              <Card className="rounded-lg p-5 lg:p-7 bg-transparent dark:bg-transparent w-full" style={{ overflow: "visible" }}>
+            <div className="p-6 sm:p-8 lg:p-10 bg-white flex items-center justify-center">
+              <Card className="rounded-lg p-5 lg:p-7 bg-transparent w-full" style={{ overflow: "visible" }}>
                 <div className="mb-8 flex justify-start">
                   <img
                     src={APP_LOGO}
@@ -62,10 +62,10 @@ export default function SignIn() {
                 ></div>
 
                 <div className="mt-6 text-left">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-primary dark:text-white">
+                  <h2 className="text-2xl sm:text-3xl font-bold text-primary">
                     Welcome to <span className="text-main">Autobook</span> ERP
                   </h2>
-                  <p className="mt-1 text-gray-700 dark:text-dark-400 leading-relaxed">
+                  <p className="mt-1 text-gray-700 leading-relaxed">
                     Streamline your business operations with a powerful and easy-to-use ERP platform.
                   </p>
                 </div>
@@ -75,7 +75,13 @@ export default function SignIn() {
                     <Input
                       label="Email"
                       placeholder="Enter Email"
-                      prefix={<EnvelopeIcon className="size-5 transition-colors duration-200" strokeWidth="1" />}
+                      prefix={
+                        <EnvelopeIcon
+                          className="size-5 text-gray-500"
+                          strokeWidth="1"
+                        />
+                      }
+                      className="focus:border-primary border-gray-300 bg-white text-gray-800"
                       {...register("email")}
                       error={errors?.email?.message}
                     />
@@ -83,7 +89,13 @@ export default function SignIn() {
                       label="Password"
                       placeholder="Enter Password"
                       type="password"
-                      prefix={<LockClosedIcon className="size-5 transition-colors duration-200" strokeWidth="1" />}
+                      prefix={
+                        <LockClosedIcon
+                          className="size-5 text-gray-500"
+                          strokeWidth="1"
+                        />
+                      }
+                      className="focus:border-primary border-gray-300 bg-white text-gray-800"
                       {...register("password")}
                       error={errors?.password?.message}
                     />
