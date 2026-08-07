@@ -3,10 +3,12 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  Row,
   RowSelectionState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+
 import { useMemo, useState } from "react";
 
 import { Page } from "@/components/shared/Page";
@@ -63,8 +65,8 @@ export default function QuotationPage() {
     enableRowSelection: true,
     getRowId: (row) => row.id,
     meta: {
-      openEditDrawer: (row: Quotation) => {
-        setEditing(row);
+      openEditDrawer: (row: Row<Quotation>) => {
+        setEditing(row.original);
         setDrawerOpen(true);
       },
       deleteRow: (row) => {
