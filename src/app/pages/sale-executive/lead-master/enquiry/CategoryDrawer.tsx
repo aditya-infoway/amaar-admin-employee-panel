@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import {
   Dialog,
@@ -10,6 +10,8 @@ import { XMarkIcon } from "@heroicons/react/24/solid";
 
 import { Button, Input, Textarea } from "@/components/ui";
 import { Listbox } from "@/components/shared/form/StyledListbox";
+import { City } from "country-state-city";
+import { Combobox } from "@/components/shared/form/StyledCombobox";
 import { DatePicker } from "@/components/shared/form/Datepicker";
 import { Get, Post, Put, toastsuccessmsg, toasterrormsg } from "@/ApiHelper";
 import { Enquiry } from "./data";
@@ -85,6 +87,21 @@ export function EnquiryDrawer({
   } = useForm<EnquiryFormValues>({
     defaultValues: emptyFormValues,
   });
+
+  const cityOptions = useMemo(() => {
+  const rawList = City.getCitiesOfCountry("IN") || [];
+  const seen = new Set<string>();
+  const options: { value: string; label: string }[] = [];
+
+  for (const c of rawList) {
+    if (!seen.has(c.name)) {
+      seen.add(c.name);
+      options.push({ value: c.name, label: c.name });
+    }
+  }
+
+  return options.sort((a, b) => a.label.localeCompare(b.label));
+}, []);
 
   // ===== Model list ab dynamic API se aayegi =====
   useEffect(() => {
@@ -331,12 +348,25 @@ export function EnquiryDrawer({
                   {...register("address", { required: "Address is required" })}
                 />
 
-                <Input
-                  label="City"
-                  required
-                  placeholder="Enter City"
-                  error={errors.city?.message}
-                  {...register("city", { required: "City is required" })}
+                <Controller
+                  name="city"
+                  control={control}
+                  rules={{ required: "City is required" }}
+                  render={({ field }) => (
+                    <Combobox
+                      label="City"
+                      error={errors.city?.message}
+                      data={cityOptions}
+                      searchFields={["label"]}
+                      highlight
+                      value={cityOptions.find((item) => item.value === field.value) || null}
+                      onChange={(item: { value: string; label: string } | null) =>
+                        field.onChange(item?.value ?? "")
+                      }
+                      placeholder="Select City"
+                      displayField="label"
+                    />
+                  )}
                 />
 
                 <Controller

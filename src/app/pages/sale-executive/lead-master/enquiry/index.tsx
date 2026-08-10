@@ -21,10 +21,19 @@ import { EnquiryDrawer } from "./CategoryDrawer";
 import { createColumns, createExportColumns } from "./columns";
 import { Enquiry, mapApiLeadToEnquiry } from "./data";
 
-// TODO: apne existing FY selector/context se yaha value lo (jaise Purchase page karta hai)
-const CURRENT_FINANCIAL_YEAR_ID = sessionStorage.getItem("financialYearId") || "";
-
 export default function EnquiryPage() {
+  // FIX — sessionStorage ko state se read karo, component mount ke time,
+  // na ki module-load time (jab tak company select hi nahi hua tha)
+  const [financialYearId, setFinancialYearId] = useState<string>(
+    () => sessionStorage.getItem("financialYearId") || "",
+  );
+
+  useEffect(() => {
+    const fyId = sessionStorage.getItem("financialYearId") || "";
+    if (fyId !== financialYearId) setFinancialYearId(fyId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const [data, setData] = useState<Enquiry[]>([]);
   const [loading, setLoading] = useState(true);
   const [modelOptions, setModelOptions] = useState<{ id: string; label: string }[]>([]);
@@ -40,7 +49,14 @@ export default function EnquiryPage() {
   const fetchList = async () => {
     setLoading(true);
     try {
-      const response = await Get("employee/sales-executive/lead/list", {}, false);
+      const role = "Sale Executive";
+
+      // const response = await Get("employee/sales-executive/lead/list", {}, false);
+      const response = await Get(
+        "employee/sales-executive/lead/list",
+        { role },
+        false,
+      );
       if (response.data?.success) {
         setData((response.data.data || []).map(mapApiLeadToEnquiry));
       } else {
@@ -173,7 +189,7 @@ export default function EnquiryPage() {
         isOpen={drawerOpen}
         close={() => setDrawerOpen(false)}
         enquiry={editing}
-        financialYearId={CURRENT_FINANCIAL_YEAR_ID}
+        financialYearId={financialYearId}
         onSaved={fetchList}
       />
     </Page>
