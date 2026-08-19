@@ -3,29 +3,31 @@ import {
   getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
-  Row,
   RowSelectionState,
   SortingState,
   useReactTable,
 } from "@tanstack/react-table";
-
-import { useMemo, useState } from "react";
-
+import { useEffect, useMemo, useState } from "react";
+import { Row } from '@tanstack/react-table';
 import { Page } from "@/components/shared/Page";
 import { Input } from "@/components/ui";
 import { fuzzyFilter } from "@/utils/react-table/fuzzyFilter";
 import { exportToExcel, exportToPdf } from "../shared/export";
 import { MasterTable } from "../shared/MasterTable";
 import { MasterToolbar } from "../shared/MasterToolbar";
-import { masterStorage } from "../shared/storage";
 import { QuotationDrawer } from "./CategoryDrawer";
-import { columns, exportColumns } from "./columns";
-import { Quotation, emptyQuotation } from "./data";
+import {
+  createColumns,
+  createExportColumns,
+  CreateMasterOption,
+} from "./columns";
+import { emptyQuotation } from "./data";
+import { Quotation } from "../shared/types";
+import { Get } from "@/ApiHelper";
 
 export default function QuotationPage() {
-  const [data, setData] = useState<Quotation[]>(() =>
-    masterStorage.getQuotations(),
-  );
+  const [data, setData] = useState<Quotation[]>([]);
+  const [loading, setLoading] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
@@ -34,14 +36,67 @@ export default function QuotationPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterCustomer, setFilterCustomer] = useState("");
   const [filterCity, setFilterCity] = useState("");
+  const [createMasterOptions, setCreateMasterOptions] = useState<
+    CreateMasterOption[]
+  >([]);
+
+  const fetchCreateMasterOptions = async () => {
+    try {
+      const response = await Get("employee/sales-executive/createmaster/list", {}, false);
+
+      if (response?.data?.success) {
+        setCreateMasterOptions(response.data.data || []);
+      }
+    } catch (error) {
+      console.error("Create Master list error:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCreateMasterOptions();
+  }, []);
+
+useEffect(() => {
+  const fetchQuotations = async () => {
+    try {
+      setLoading(true);
+
+      const financialYearId = sessionStorage.getItem("financialYearId");
+      const role = sessionStorage.getItem("role") || "";
+
+      const response = await Get(
+        "employee/sales-executive/quotation/list",
+        {
+          ...(financialYearId ? { financialYearId } : {}),
+          role,
+        },
+        false,
+      );
+
+      if (response?.data?.success || response?.data?.status === 200) {
+        const quotations = response.data.data || [];
+        setData(quotations);
+      } else {
+        console.error(
+          "Quotation list failed:",
+          response?.data?.message || response?.data,
+        );
+      }
+    } catch (error) {
+      console.error("Quotation list error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchQuotations();
+}, []);
 
   const filteredData = useMemo(() => {
     return data.filter((item) => {
       if (
         filterCustomer &&
-        !item.customerName
-          .toLowerCase()
-          .includes(filterCustomer.toLowerCase())
+        !item.customerName.toLowerCase().includes(filterCustomer.toLowerCase())
       )
         return false;
       if (
@@ -53,41 +108,54 @@ export default function QuotationPage() {
     });
   }, [data, filterCustomer, filterCity]);
 
+  const quotationColumns = useMemo(
+    () => createColumns(createMasterOptions),
+    [createMasterOptions],
+  );
+
+  const quotationExportColumns = useMemo(
+    () => createExportColumns(createMasterOptions),
+    [createMasterOptions],
+  );
+
   const persist = (next: Quotation[]) => {
     setData(next);
-    masterStorage.saveQuotations(next);
   };
 
-  const table = useReactTable({
-    data: filteredData,
-    columns,
-    state: { globalFilter, sorting, rowSelection },
-    enableRowSelection: true,
-    getRowId: (row) => row.id,
-    meta: {
-      openEditDrawer: (row: Row<Quotation>) => {
-        setEditing(row.original);
-        setDrawerOpen(true);
-      },
-      deleteRow: (row) => {
-        persist(data.filter((item) => item.id !== row.original.id));
-      },
-      deleteRows: (rows) => {
-        const ids = new Set(rows.map((r) => r.original.id));
-        persist(data.filter((item) => !ids.has(item.id)));
-        setRowSelection({});
-      },
+
+const table = useReactTable({
+  data: filteredData,
+  columns: quotationColumns,
+  state: { globalFilter, sorting, rowSelection },
+  enableRowSelection: true,
+  getRowId: (row) => row.id,
+  meta: {
+    // ✅ Accept Row<Quotation> and extract original
+    openEditDrawer: (row: Row<Quotation>) => {
+      setEditing(row.original);
+      setDrawerOpen(true);
     },
-    filterFns: { fuzzy: fuzzyFilter },
-    globalFilterFn: fuzzyFilter,
-    onGlobalFilterChange: setGlobalFilter,
-    onSortingChange: setSorting,
-    onRowSelectionChange: setRowSelection,
-    getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-  });
+    // ✅ Accept Row<Quotation>
+    deleteRow: (row: Row<Quotation>) => {
+      persist(data.filter((item) => item.id !== row.original.id));
+    },
+    // ✅ Accept Row<Quotation>[] 
+    deleteRows: (rows: Row<Quotation>[]) => {
+      const ids = new Set(rows.map((r) => r.original.id));
+      persist(data.filter((item) => !ids.has(item.id)));
+      setRowSelection({});
+    },
+  },
+  filterFns: { fuzzy: fuzzyFilter },
+  globalFilterFn: fuzzyFilter,
+  onGlobalFilterChange: setGlobalFilter,
+  onSortingChange: setSorting,
+  onRowSelectionChange: setRowSelection,
+  getCoreRowModel: getCoreRowModel(),
+  getFilteredRowModel: getFilteredRowModel(),
+  getSortedRowModel: getSortedRowModel(),
+  getPaginationRowModel: getPaginationRowModel(),
+});
 
   return (
     <Page title="Quotation">
@@ -104,12 +172,12 @@ export default function QuotationPage() {
             setDrawerOpen(true);
           }}
           onExportExcel={() =>
-            exportToExcel(filteredData, exportColumns, "quotations")
+            exportToExcel(filteredData, quotationExportColumns, "quotations")
           }
           onExportPdf={() =>
             exportToPdf(
               filteredData,
-              exportColumns,
+              quotationExportColumns,
               "Quotation List",
               "quotations",
             )
@@ -134,7 +202,7 @@ export default function QuotationPage() {
 
         <MasterTable
           table={table}
-          columnCount={columns.length}
+          columnCount={quotationColumns.length}
           emptyMessage="No quotations found. Click Add Quotation to add one."
         />
       </div>
