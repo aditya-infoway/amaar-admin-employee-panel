@@ -22,7 +22,6 @@ import {
   toastsuccessmsg,
 } from "@/ApiHelper";
 
-
 // TEMP: static option lists so the drawer compiles/works standalone.
 // Replace each of these with a real fetch (masterStorage / API) once
 // the backend endpoints for these masters are ready — the rest of the
@@ -149,94 +148,105 @@ export function QuotationDrawer({
 
   // Refreshed every time the drawer opens so newly added leads show up
   useEffect(() => {
-const fetchLeads = async () => {
-  if (!isOpen) return;
+    const fetchLeads = async () => {
+      if (!isOpen) return;
 
-  try {
-    const role = sessionStorage.getItem("roleName") || "";
-    const userId = sessionStorage.getItem("employeeId") || "";
+      try {
+        const role = sessionStorage.getItem("roleName") || "";
+        const userId = sessionStorage.getItem("employeeId") || "";
 
-    console.log("Fetching leads - Role:", role, "UserId:", userId);
+        console.log("Fetching leads - Role:", role, "UserId:", userId);
 
-    const response = await Get("employee/sales-executive/lead/list", { role }, false);
-    
-    console.log("Full API Response:", response);  // ✅ Check full response
+        const response = await Get(
+          "employee/sales-executive/lead/list",
+          { role },
+          false,
+        );
 
-    if (response?.data?.success || response?.data?.status === 200) {
-      let leads = response.data.data || [];
-      
-      console.log("All leads from API:", leads);  // ✅ Check leads data
-      console.log("Number of leads:", leads.length);
-      
-      // Log first lead to see its structure
-      if (leads.length > 0) {
-        console.log("First lead structure:", leads[0]);
-        console.log("First lead createdBy:", leads[0].createdBy);
+        console.log("Full API Response:", response); // ✅ Check full response
+
+        if (response?.data?.success || response?.data?.status === 200) {
+          let leads = response.data.data || [];
+
+          console.log("All leads from API:", leads); // ✅ Check leads data
+          console.log("Number of leads:", leads.length);
+
+          // Log first lead to see its structure
+          if (leads.length > 0) {
+            console.log("First lead structure:", leads[0]);
+            console.log("First lead createdBy:", leads[0].createdBy);
+          }
+
+          if (role === "Sale Executive" && userId) {
+            leads = leads.filter((lead: any) => {
+              const match = String(lead.createdBy) === String(userId);
+              console.log(
+                `Lead ${lead.leadCode}: createdBy=${lead.createdBy}, userId=${userId}, match=${match}`,
+              );
+              return match;
+            });
+            console.log("Filtered leads:", leads);
+          }
+
+          setLeadOptions(
+            leads.map((lead: any) => ({
+              id: Number(lead.leadId),
+              leadId: Number(lead.leadId),
+              leadCode: lead.leadCode,
+              name: lead.name,
+              number: lead.number,
+              email: lead.email || "",
+              address: lead.address || "",
+              city: lead.city || "",
+              model: lead.model || "",
+              remark: lead.remark || "",
+              label: `${lead.leadCode} - ${lead.name} - ${lead.number}`,
+            })),
+          );
+
+          console.log("LeadOptions set:", leadOptions); // ✅ Check after setting
+        } else {
+          console.log("API response unsuccessful:", response?.data);
+        }
+      } catch (error) {
+        console.error("Enquiry list error:", error);
+        toasterrormsg("Unable to load enquiries.");
       }
-      
-      if (role === "Sale Executive" && userId) {
-        leads = leads.filter((lead: any) => {
-          const match = String(lead.createdBy) === String(userId);
-          console.log(`Lead ${lead.leadCode}: createdBy=${lead.createdBy}, userId=${userId}, match=${match}`);
-          return match;
-        });
-        console.log("Filtered leads:", leads);
-      }
-
-      setLeadOptions(
-        leads.map((lead: any) => ({
-          id: Number(lead.leadId),
-          leadId: Number(lead.leadId),
-          leadCode: lead.leadCode,
-          name: lead.name,
-          number: lead.number,
-          email: lead.email || "",
-          address: lead.address || "",
-          city: lead.city || "",
-          model: lead.model || "",
-          remark: lead.remark || "",
-          label: `${lead.leadCode} - ${lead.name} - ${lead.number}`,
-        })),
-      );
-      
-      console.log("LeadOptions set:", leadOptions);  // ✅ Check after setting
-    } else {
-      console.log("API response unsuccessful:", response?.data);
-    }
-  } catch (error) {
-    console.error("Enquiry list error:", error);
-    toasterrormsg("Unable to load enquiries.");
-  }
-};
+    };
 
     fetchLeads();
   }, [isOpen]);
 
- const [modelOptions, setModelOptions] = useState<DropdownOption[]>([]);
+  const [modelOptions, setModelOptions] = useState<DropdownOption[]>([]);
 
-// Build model options from leads (no API call)
-useEffect(() => {
-  if (!isOpen) return;
-  
-  const buildModelOptions = () => {
-    const uniqueModels = new Set<string>();
-    
-    leadOptions.forEach((lead) => {
-      if (lead.model) {
-        uniqueModels.add(String(lead.model));
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchModels = async () => {
+      try {
+        const response = await Get(
+          "employee/sales-executive/model/list",
+          {},
+          false,
+        );
+
+        if (response?.data?.success || response?.data?.status === 200) {
+          const models = response.data.data || [];
+
+          setModelOptions(
+            models.map((item: any) => ({
+              id: String(item.modelId ?? item.id),
+              label: item.modelName ?? item.label,
+            })),
+          );
+        }
+      } catch (error) {
+        console.error("Model list error:", error);
       }
-    });
-    
-    const models = Array.from(uniqueModels).map((model) => ({
-      id: model,
-      label: model,
-    }));
-    
-    setModelOptions(models);
-  };
-  
-  buildModelOptions();
-}, [leadOptions, isOpen]);
+    };
+
+    fetchModels();
+  }, [isOpen]);
 
   // Pre-fill on edit, or reset on add
   useEffect(() => {
@@ -355,10 +365,10 @@ useEffect(() => {
         ),
       );
       {
-      const savedWarranty = (quotation as any).warranty;
-setWarranty(
-  savedWarranty ? new Delta(JSON.parse(savedWarranty).ops) : undefined,
-);
+        const savedWarranty = (quotation as any).warranty;
+        setWarranty(
+          savedWarranty ? new Delta(JSON.parse(savedWarranty).ops) : undefined,
+        );
       }
 
       setDiscountType(quotation.discountType);
@@ -404,50 +414,38 @@ setWarranty(
   }, [quotation, isOpen, createMasterData]);
 
   // Handle auto-fill reliably by parsing both arrays or direct single objects
-useEffect(() => {
-  const lead = Array.isArray(selectedLead)
-    ? selectedLead[0]
-    : (selectedLead as LeadOption | null);
-  if (!lead) {
-    setCustomerName("");
-    setMobile("");
-    setEmail("");
-    setAddress("");
-    setCity("");
-    setModel("");
-    setRemark("");
-    return;
-  }
+  useEffect(() => {
+    const lead = Array.isArray(selectedLead)
+      ? selectedLead[0]
+      : (selectedLead as LeadOption | null);
+    if (!lead) {
+      setCustomerName("");
+      setMobile("");
+      setEmail("");
+      setAddress("");
+      setCity("");
+      setModel("");
+      setRemark("");
+      return;
+    }
 
-  const fullLead = leadOptions.find(
-    (item) => Number(item.leadId) === Number(lead.leadId),
-  );
+    const fullLead = leadOptions.find(
+      (item) => Number(item.leadId) === Number(lead.leadId),
+    );
 
-  if (!fullLead) return;
+    if (!fullLead) return;
 
-  console.log("fullLead.model:", fullLead.model);
-  console.log("modelOptions:", modelOptions);
+    console.log("fullLead.model:", fullLead.model);
+    console.log("modelOptions:", modelOptions);
 
-  setCustomerName(fullLead.name || "");
-  setMobile(fullLead.number || "");
-  setEmail(fullLead.email || "");
-  setAddress(fullLead.address || "");
-  setCity(fullLead.city || "");
-  
-  // ✅ Get model name from modelOptions using the ID
-  const modelId = String(fullLead.model ?? "");
-  let modelName = modelId;
-  
-  // Find the model name in modelOptions
-  const foundModel = modelOptions.find((opt) => opt.id === modelId);
-  if (foundModel) {
-    modelName = foundModel.label;
-  }
-  
-  setModel(modelName);
-  
-  setRemark(fullLead.remark || "");
-}, [selectedLead, leadOptions, modelOptions]);
+    setCustomerName(fullLead.name || "");
+    setMobile(fullLead.number || "");
+    setEmail(fullLead.email || "");
+    setAddress(fullLead.address || "");
+    setCity(fullLead.city || "");
+    setModel(String(fullLead.model ?? ""));
+    setRemark(fullLead.remark || "");
+  }, [selectedLead, leadOptions, modelOptions]);
 
   // When switching to Tipper, clear the Main Chassis selection since it's hidden
   useEffect(() => {
@@ -614,7 +612,7 @@ useEffect(() => {
     }
 
     const userId = sessionStorage.getItem("employeeId") || "Admin";
-const role = sessionStorage.getItem("roleName") || "Sale Executive";
+    const role = sessionStorage.getItem("roleName") || "Sale Executive";
 
     const payload = {
       financialYearId: Number(financialYearId),
@@ -658,16 +656,24 @@ const role = sessionStorage.getItem("roleName") || "Sale Executive";
       position: position || null,
 
       createdBy: userId,
-    createdType: role,
+      createdType: role,
     };
 
     try {
       let response;
 
       if (isEditing && quotation?.id) {
-        response = await Put(`employee/sales-executive/quotation/${quotation.id}`, payload, false);
+        response = await Put(
+          `employee/sales-executive/quotation/${quotation.id}`,
+          payload,
+          false,
+        );
       } else {
-        response = await Post("employee/sales-executive/quotation/create", payload, false);
+        response = await Post(
+          "employee/sales-executive/quotation/create",
+          payload,
+          false,
+        );
       }
 
       const responseData = response?.data;
@@ -753,7 +759,11 @@ const role = sessionStorage.getItem("roleName") || "Sale Executive";
   useEffect(() => {
     const fetchCreateMaster = async () => {
       try {
-const response = await Get("employee/sales-executive/createmaster/list", {}, false);
+        const response = await Get(
+          "employee/sales-executive/createmaster/list",
+          {},
+          false,
+        );
 
         if (response?.data?.status === 200 || response?.data?.success) {
           setCreateMasterData(response?.data?.data || []);
@@ -1346,21 +1356,27 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Input
                   label="Basic Cost"
-                  value={`₹ ${basePrice.toLocaleString("en-IN")}`}
+                  value={`₹ ${afterDiscount.toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}`}
                   disabled
                   onChange={() => {}}
                 />
 
                 <Input
                   label="GST 18%"
-                  value={`₹ ${gstAmount.toLocaleString("en-IN")}`}
+                  value={`₹ ${gstAmount.toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}`}
                   disabled
                   onChange={() => {}}
                 />
 
                 <Input
                   label="Final Amount"
-                  value={`₹ ${finalPrice.toLocaleString("en-IN")}`}
+                  value={`₹ ${finalPrice.toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}`}
                   disabled
                   onChange={() => {}}
                 />
