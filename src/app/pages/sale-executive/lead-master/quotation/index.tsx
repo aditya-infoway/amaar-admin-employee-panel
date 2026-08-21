@@ -23,7 +23,7 @@ import {
 } from "./columns";
 import { emptyQuotation } from "./data";
 import { Quotation } from "../shared/types";
-import { Get } from "@/ApiHelper";
+import { Get, Delete } from "@/ApiHelper";
 
 export default function QuotationPage() {
   const [data, setData] = useState<Quotation[]>([]);
@@ -129,21 +129,44 @@ const table = useReactTable({
   state: { globalFilter, sorting, rowSelection },
   enableRowSelection: true,
   getRowId: (row) => row.id,
-  meta: {
-    // ✅ Accept Row<Quotation> and extract original
+   meta: {
     openEditDrawer: (row: Row<Quotation>) => {
       setEditing(row.original);
       setDrawerOpen(true);
     },
-    // ✅ Accept Row<Quotation>
-    deleteRow: (row: Row<Quotation>) => {
-      persist(data.filter((item) => item.id !== row.original.id));
+    deleteRow: async (row: Row<Quotation>) => {
+      try {
+        const response = await Delete(
+          `employee/sales-executive/quotation/${row.original.id}`,
+          {},
+          false,
+        );
+
+        if (response?.data?.success || response?.data?.status === 200) {
+          persist(data.filter((item) => item.id !== row.original.id));
+        } else {
+          console.error("Failed to delete quotation:", response?.data?.message);
+        }
+      } catch (error) {
+        console.error("Quotation delete error:", error);
+      }
     },
-    // ✅ Accept Row<Quotation>[] 
-    deleteRows: (rows: Row<Quotation>[]) => {
-      const ids = new Set(rows.map((r) => r.original.id));
-      persist(data.filter((item) => !ids.has(item.id)));
-      setRowSelection({});
+    deleteRows: async (rows: Row<Quotation>[]) => {
+      try {
+        const ids = rows.map((r) => r.original.id);
+
+        await Promise.all(
+          ids.map((id) =>
+            Delete(`employee/sales-executive/quotation/${id}`, {}, false),
+          ),
+        );
+
+        const idSet = new Set(ids);
+        persist(data.filter((item) => !idSet.has(item.id)));
+        setRowSelection({});
+      } catch (error) {
+        console.error("Quotation bulk delete error:", error);
+      }
     },
   },
   filterFns: { fuzzy: fuzzyFilter },
