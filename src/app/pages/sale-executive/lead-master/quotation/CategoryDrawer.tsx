@@ -22,15 +22,10 @@ import {
   toastsuccessmsg,
 } from "@/ApiHelper";
 
-
-// TEMP: static option lists so the drawer compiles/works standalone.
-// Replace each of these with a real fetch (masterStorage / API) once
-// the backend endpoints for these masters are ready — the rest of the
-// component only depends on the {id, label, price} shape, so nothing
-// else needs to change when you wire these up dynamically.
 interface DropdownOption {
   id: string;
   label: string;
+  code?: string;
   price?: number;
 }
 
@@ -80,6 +75,7 @@ interface CreateMasterOption {
   createMasterId: string | number;
   type: string;
   description: string;
+  code?: string;
   actualItem?: any[];
   exShowroom?: number;
   effectiveDate?: string;
@@ -143,100 +139,85 @@ export function QuotationDrawer({
   const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [createMasterData, setCreateMasterData] = useState<
-    CreateMasterOption[]
+ 
+const [createMasterData, setCreateMasterData] =
+  useState<CreateMasterOption[]>([]);
+
+  const [createPricingData, setCreatePricingData] = useState<
+    { code: string; exShowroomPrice: number }[]
   >([]);
-
   // Refreshed every time the drawer opens so newly added leads show up
+  // ===== Employee session se role/id, backend already filters "Sale Executive" ka apna data =====
   useEffect(() => {
-const fetchLeads = async () => {
-  if (!isOpen) return;
+    const fetchLeads = async () => {
+      if (!isOpen) return;
 
-  try {
-    const role = sessionStorage.getItem("roleName") || "";
-    const userId = sessionStorage.getItem("employeeId") || "";
+      try {
+        const role = localStorage.getItem("roleName") || "Sale Executive";
 
-    console.log("Fetching leads - Role:", role, "UserId:", userId);
+        const response = await Get(
+          "employee/sales-executive/lead/list",
+          { role },
+          false,
+        );
 
-    const response = await Get("employee/sales-executive/lead/list", { role }, false);
-    
-    console.log("Full API Response:", response);  // ✅ Check full response
+        if (response?.data?.success || response?.data?.status === 200) {
+          const leads = response.data.data || [];
 
-    if (response?.data?.success || response?.data?.status === 200) {
-      let leads = response.data.data || [];
-      
-      console.log("All leads from API:", leads);  // ✅ Check leads data
-      console.log("Number of leads:", leads.length);
-      
-      // Log first lead to see its structure
-      if (leads.length > 0) {
-        console.log("First lead structure:", leads[0]);
-        console.log("First lead createdBy:", leads[0].createdBy);
+          setLeadOptions(
+            leads.map((lead: any) => ({
+              id: Number(lead.leadId),
+              leadId: Number(lead.leadId),
+              leadCode: lead.leadCode,
+              name: lead.name,
+              number: lead.number,
+              email: lead.email || "",
+              address: lead.address || "",
+              city: lead.city || "",
+              model: lead.model || "",
+              remark: lead.remark || "",
+              label: `${lead.leadCode} - ${lead.name} - ${lead.number}`,
+            })),
+          );
+        }
+      } catch (error) {
+        console.error("Enquiry list error:", error);
+        toasterrormsg("Unable to load enquiries.");
       }
-      
-      if (role === "Sale Executive" && userId) {
-        leads = leads.filter((lead: any) => {
-          const match = String(lead.createdBy) === String(userId);
-          console.log(`Lead ${lead.leadCode}: createdBy=${lead.createdBy}, userId=${userId}, match=${match}`);
-          return match;
-        });
-        console.log("Filtered leads:", leads);
-      }
-
-      setLeadOptions(
-        leads.map((lead: any) => ({
-          id: Number(lead.leadId),
-          leadId: Number(lead.leadId),
-          leadCode: lead.leadCode,
-          name: lead.name,
-          number: lead.number,
-          email: lead.email || "",
-          address: lead.address || "",
-          city: lead.city || "",
-          model: lead.model || "",
-          remark: lead.remark || "",
-          label: `${lead.leadCode} - ${lead.name} - ${lead.number}`,
-        })),
-      );
-      
-      console.log("LeadOptions set:", leadOptions);  // ✅ Check after setting
-    } else {
-      console.log("API response unsuccessful:", response?.data);
-    }
-  } catch (error) {
-    console.error("Enquiry list error:", error);
-    toasterrormsg("Unable to load enquiries.");
-  }
-};
+    };
 
     fetchLeads();
   }, [isOpen]);
 
- const [modelOptions, setModelOptions] = useState<DropdownOption[]>([]);
+  const [modelOptions, setModelOptions] = useState<DropdownOption[]>([]);
+  useEffect(() => {
+    if (!isOpen) return;
 
-// Build model options from leads (no API call)
-useEffect(() => {
-  if (!isOpen) return;
-  
-  const buildModelOptions = () => {
-    const uniqueModels = new Set<string>();
-    
-    leadOptions.forEach((lead) => {
-      if (lead.model) {
-        uniqueModels.add(String(lead.model));
+    const fetchModels = async () => {
+      try {
+        const response = await Get(
+          "employee/sales-executive/finished-goods/list", // 👈 same source as employee EnquiryDrawer
+          {},
+          false,
+        );
+
+        if (response?.data?.success || response?.data?.status === 200) {
+          const models = response.data.data || [];
+
+          setModelOptions(
+            models.map((item: any) => ({
+              id: String(item.itemId), // 👈 match EnquiryDrawer's saved id
+              label: item.itemName,
+            })),
+          );
+        }
+      } catch (error) {
+        console.error("Model list error:", error);
       }
-    });
-    
-    const models = Array.from(uniqueModels).map((model) => ({
-      id: model,
-      label: model,
-    }));
-    
-    setModelOptions(models);
-  };
-  
-  buildModelOptions();
-}, [leadOptions, isOpen]);
+    };
+
+    fetchModels();
+  }, [isOpen]);
 
   // Pre-fill on edit, or reset on add
   useEffect(() => {
@@ -355,10 +336,10 @@ useEffect(() => {
         ),
       );
       {
-      const savedWarranty = (quotation as any).warranty;
-setWarranty(
-  savedWarranty ? new Delta(JSON.parse(savedWarranty).ops) : undefined,
-);
+        const savedWarranty = (quotation as any).warranty;
+        setWarranty(
+          savedWarranty ? new Delta(JSON.parse(savedWarranty).ops) : undefined,
+        );
       }
 
       setDiscountType(quotation.discountType);
@@ -401,58 +382,52 @@ setWarranty(
       setPosition("");
     }
     setErrors({});
-  }, [quotation, isOpen, createMasterData]);
+  }, [quotation, isOpen]);
 
   // Handle auto-fill reliably by parsing both arrays or direct single objects
-useEffect(() => {
-  const lead = Array.isArray(selectedLead)
-    ? selectedLead[0]
-    : (selectedLead as LeadOption | null);
-  if (!lead) {
-    setCustomerName("");
-    setMobile("");
-    setEmail("");
-    setAddress("");
-    setCity("");
-    setModel("");
-    setRemark("");
-    return;
-  }
+  useEffect(() => {
+    if (leadOptions.length === 0) return; // don't clear fields while leads are still loading
 
-  const fullLead = leadOptions.find(
-    (item) => Number(item.leadId) === Number(lead.leadId),
-  );
+    const lead = Array.isArray(selectedLead)
+      ? selectedLead[0]
+      : (selectedLead as LeadOption | null);
+    if (!lead) {
+      setCustomerName("");
+      setMobile("");
+      setEmail("");
+      setAddress("");
+      setCity("");
+      setModel("");
+      setRemark("");
+      return;
+    }
 
-  if (!fullLead) return;
+    const fullLead = leadOptions.find(
+      (item) => Number(item.leadId) === Number(lead.leadId),
+    );
 
-  console.log("fullLead.model:", fullLead.model);
-  console.log("modelOptions:", modelOptions);
+    if (!fullLead) return;
 
-  setCustomerName(fullLead.name || "");
-  setMobile(fullLead.number || "");
-  setEmail(fullLead.email || "");
-  setAddress(fullLead.address || "");
-  setCity(fullLead.city || "");
-  
-  // ✅ Get model name from modelOptions using the ID
-  const modelId = String(fullLead.model ?? "");
-  let modelName = modelId;
-  
-  // Find the model name in modelOptions
-  const foundModel = modelOptions.find((opt) => opt.id === modelId);
-  if (foundModel) {
-    modelName = foundModel.label;
-  }
-  
-  setModel(modelName);
-  
-  setRemark(fullLead.remark || "");
-}, [selectedLead, leadOptions, modelOptions]);
+    setCustomerName(fullLead.name || "");
+    setMobile(fullLead.number || "");
+    setEmail(fullLead.email || "");
+    setAddress(fullLead.address || "");
+    setCity(fullLead.city || "");
+    setModel(String(fullLead.model ?? ""));
+    setRemark(fullLead.remark || "");
+  }, [selectedLead, leadOptions]);
 
-  // When switching to Tipper, clear the Main Chassis selection since it's hidden
+  // When switching to Tipper, clear the fields hidden for Tipper
   useEffect(() => {
     if (vehicleType === "tipper") {
-      setChassis([]);
+      setAxle([]);
+      setSuspension([]);
+      setTyre([]);
+      setRim([]);
+      setLandingLeg([]);
+      setBrakeSystem([]);
+      setElectricalTapes([]);
+      setSpareWheelCarrier([]);
     }
   }, [vehicleType]);
 
@@ -463,7 +438,7 @@ useEffect(() => {
 
     return (
       getPrice(trailer) +
-      (vehicleType === "trailer" ? getPrice(chassis) : 0) +
+      getPrice(chassis) +
       getPrice(body) +
       getPrice(hydraulic) +
       getPrice(axle) +
@@ -526,7 +501,7 @@ useEffect(() => {
       if (!isOpen || isEditing) return;
 
       try {
-        const financialYearId = sessionStorage.getItem("financialYearId");
+        const financialYearId = localStorage.getItem("financialYearId");
 
         if (!financialYearId) {
           console.error("Financial Year ID not found");
@@ -539,9 +514,16 @@ useEffect(() => {
           false,
         );
 
-        if (response?.data?.success || response?.data?.status === 200) {
-          setQNo(response.data.data.qNo);
-        }
+         console.log("NEXT QUOTATION API RESPONSE:", response?.data);
+
+const generatedQNo = response?.data?.data?.qNo;
+
+if (generatedQNo) {
+  setQNo(String(generatedQNo));
+} else {
+  console.error("Quotation number missing:", response?.data);
+  toasterrormsg("Quotation number was not generated.");
+}
       } catch (error) {
         console.error("Quotation number generation error:", error);
         toasterrormsg("Unable to generate quotation number.");
@@ -560,24 +542,28 @@ useEffect(() => {
     }
     if (!qNo) nextErrors.qNo = "Quotation No is required";
     if (trailer.length === 0) nextErrors.trailer = "Select Trailer";
-    if (vehicleType === "trailer" && chassis.length === 0)
-      nextErrors.chassis = "Select Main Chassis";
+    if (chassis.length === 0) nextErrors.chassis = "Select Main Chassis";
     if (body.length === 0) nextErrors.body = "Select Body";
     if (hydraulic.length === 0) nextErrors.hydraulic = "Select Hydraulic";
-    if (axle.length === 0) nextErrors.axle = "Select Axle";
-    if (suspension.length === 0) nextErrors.suspension = "Select Suspension";
-    if (tyre.length === 0) nextErrors.tyre = "Select Tyre";
-    if (rim.length === 0) nextErrors.rim = "Select Rim";
+    if (vehicleType === "trailer" && axle.length === 0)
+      nextErrors.axle = "Select Axle";
+    if (vehicleType === "trailer" && suspension.length === 0)
+      nextErrors.suspension = "Select Suspension";
+    if (vehicleType === "trailer" && tyre.length === 0)
+      nextErrors.tyre = "Select Tyre";
+    if (vehicleType === "trailer" && rim.length === 0)
+      nextErrors.rim = "Select Rim";
     if (kingPin.length === 0) nextErrors.kingPin = "Select King Pin";
-    if (landingLeg.length === 0) nextErrors.landingLeg = "Select Landing Leg";
-    if (brakeSystem.length === 0)
+    if (vehicleType === "trailer" && landingLeg.length === 0)
+      nextErrors.landingLeg = "Select Landing Leg";
+    if (vehicleType === "trailer" && brakeSystem.length === 0)
       nextErrors.brakeSystem = "Select Brake System";
     if (mudguard.length === 0) nextErrors.mudguard = "Select Mudguard";
-    if (electricalTapes.length === 0)
+    if (vehicleType === "trailer" && electricalTapes.length === 0)
       nextErrors.electricalTapes = "Select Electrical & Reflective Tapes";
     if (supdRupd.length === 0) nextErrors.supdRupd = "Select SUPD & RUPD";
     if (box.length === 0) nextErrors.box = "Select Tool Box";
-    if (spareWheelCarrier.length === 0)
+    if (vehicleType === "trailer" && spareWheelCarrier.length === 0)
       nextErrors.spareWheelCarrier = "Select Spare Wheel Carrier";
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -596,8 +582,109 @@ useEffect(() => {
     return found ? [found] : [];
   };
 
+  const PRICE_ERROR =
+    "Price not set. Please set the price in Create Pricing first.";
+
+  const validatePrices = () => {
+    const nextErrors: Record<string, string> = {};
+
+    const fields: {
+      field: string;
+      selected: DropdownOption[];
+      optionalForTipper?: boolean;
+    }[] = [
+      { field: "trailer", selected: trailer },
+      { field: "chassis", selected: chassis },
+      { field: "body", selected: body },
+      { field: "hydraulic", selected: hydraulic },
+
+      {
+        field: "axle",
+        selected: axle,
+        optionalForTipper: true,
+      },
+      {
+        field: "suspension",
+        selected: suspension,
+        optionalForTipper: true,
+      },
+      {
+        field: "tyre",
+        selected: tyre,
+        optionalForTipper: true,
+      },
+      {
+        field: "rim",
+        selected: rim,
+        optionalForTipper: true,
+      },
+
+      { field: "kingPin", selected: kingPin },
+
+      {
+        field: "landingLeg",
+        selected: landingLeg,
+        optionalForTipper: true,
+      },
+
+      {
+        field: "brakeSystem",
+        selected: brakeSystem,
+        optionalForTipper: true,
+      },
+
+      { field: "mudguard", selected: mudguard },
+      { field: "color", selected: color },
+
+      {
+        field: "electricalTapes",
+        selected: electricalTapes,
+        optionalForTipper: true,
+      },
+
+      { field: "supdRupd", selected: supdRupd },
+      { field: "box", selected: box },
+
+      {
+        field: "spareWheelCarrier",
+        selected: spareWheelCarrier,
+        optionalForTipper: true,
+      },
+    ];
+
+    fields.forEach(({ field, selected, optionalForTipper }) => {
+      if (vehicleType === "tipper" && optionalForTipper) {
+        return;
+      }
+
+      const option = selected?.[0];
+
+      // Selection itself is handled by validate().
+      if (!option) {
+        return;
+      }
+
+      const price = Number(option.price);
+
+      if (!Number.isFinite(price) || price <= 0) {
+        nextErrors[field] = PRICE_ERROR;
+      }
+    });
+
+    setErrors((previous) => ({
+      ...previous,
+      ...nextErrors,
+    }));
+
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const handleSubmit = async () => {
     if (!validate()) return;
+
+    if (!validatePrices()) {
+      return;
+    }
 
     const lead = selectedLead?.[0];
 
@@ -606,15 +693,16 @@ useEffect(() => {
       return;
     }
 
-    const financialYearId = sessionStorage.getItem("financialYearId");
+    const financialYearId = localStorage.getItem("financialYearId");
 
     if (!financialYearId) {
       toasterrormsg("Financial Year not found. Please select a company year.");
       return;
     }
 
-    const userId = sessionStorage.getItem("employeeId") || "Admin";
-const role = sessionStorage.getItem("roleName") || "Sale Executive";
+    // ===== employeeId/role localStorage se — employee panel ka apna context =====
+    const employeeId = localStorage.getItem("employeeId") || "";
+    const roleName = localStorage.getItem("roleName") || "Sale Executive";
 
     const payload = {
       financialYearId: Number(financialYearId),
@@ -632,7 +720,7 @@ const role = sessionStorage.getItem("roleName") || "Sale Executive";
 
       trailer: idOf(trailer),
 
-      chassis: vehicleType === "trailer" ? idOf(chassis) : null,
+      chassis: idOf(chassis),
 
       body: idOf(body),
       hydraulic: idOf(hydraulic),
@@ -657,17 +745,25 @@ const role = sessionStorage.getItem("roleName") || "Sale Executive";
 
       position: position || null,
 
-      createdBy: userId,
-    createdType: role,
+      createdBy: quotation?.createdBy || employeeId || "Sale Executive",
+      createdType: roleName,
     };
 
     try {
       let response;
 
       if (isEditing && quotation?.id) {
-        response = await Put(`employee/sales-executive/quotation/${quotation.id}`, payload, false);
+        response = await Put(
+          `employee/sales-executive/quotation/${quotation.id}`,
+          payload,
+          false,
+        );
       } else {
-        response = await Post("employee/sales-executive/quotation/create", payload, false);
+        response = await Post(
+          "employee/sales-executive/quotation/create",
+          payload,
+          false,
+        );
       }
 
       const responseData = response?.data;
@@ -701,7 +797,7 @@ const role = sessionStorage.getItem("roleName") || "Sale Executive";
           vehicleType,
 
           trailer: idOf(trailer),
-          chassis: vehicleType === "trailer" ? idOf(chassis) : null,
+          chassis: idOf(chassis),
           body: idOf(body),
           hydraulic: idOf(hydraulic),
           axle: idOf(axle),
@@ -753,7 +849,11 @@ const role = sessionStorage.getItem("roleName") || "Sale Executive";
   useEffect(() => {
     const fetchCreateMaster = async () => {
       try {
-const response = await Get("employee/sales-executive/createmaster/list", {}, false);
+        const response = await Get(
+          "employee/sales-executive/createmaster/list",
+          {},
+          false,
+        );
 
         if (response?.data?.status === 200 || response?.data?.success) {
           setCreateMasterData(response?.data?.data || []);
@@ -766,22 +866,62 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
     fetchCreateMaster();
   }, []);
 
+  useEffect(() => {
+    const fetchCreatePricing = async () => {
+      try {
+        const response = await Get(
+          "employee/sales-executive/createpricing/list",
+          {},
+          false,
+        );
+
+        if (response?.data?.status === 200 || response?.data?.success) {
+          setCreatePricingData(response?.data?.data || []);
+        }
+      } catch (error) {
+        console.error("Create Pricing list error:", error);
+      }
+    };
+
+    fetchCreatePricing();
+  }, []);
+
   const getMasterOptions = (type: string): DropdownOption[] => {
+    const priceByCode = new Map<string, number>();
+
+    createPricingData.forEach((p: any) => {
+      if (p.code) {
+        const price = Number(p.exShowroomPrice);
+
+        priceByCode.set(
+          String(p.code).trim().toLowerCase(),
+          Number.isFinite(price) ? price : 0,
+        );
+      }
+    });
+
     return createMasterData
       .filter(
         (item) => item.type?.trim().toLowerCase() === type.trim().toLowerCase(),
       )
-      .map((item) => ({
-        id: String(item.createMasterId),
-        label: item.description,
-        price: Number(item.exShowroom) || 0,
-      }));
+      .map((item: CreateMasterOption) => {
+        const code = String(item.code || "").trim();
+        const codeKey = code.toLowerCase();
+
+        return {
+          id: String(item.createMasterId),
+          label: item.description,
+          code,
+          price: codeKey ? (priceByCode.get(codeKey) ?? 0) : 0,
+        };
+      });
   };
 
   const handleMasterChange = (
     value: any,
     type: string,
     setter: React.Dispatch<React.SetStateAction<DropdownOption[]>>,
+    fieldName: string,
   ) => {
     const options = getMasterOptions(type);
 
@@ -789,6 +929,14 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
 
     if (!selected) {
       setter([]);
+
+      // Clear error when dropdown is cleared
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldName];
+        return next;
+      });
+
       return;
     }
 
@@ -799,6 +947,25 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
     );
 
     setter(matchedOption ? [matchedOption] : []);
+
+    // Check price immediately after selection
+    if (matchedOption) {
+      const price = Number(matchedOption.price);
+
+      if (!Number.isFinite(price) || price <= 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [fieldName]: PRICE_ERROR,
+        }));
+      } else {
+        // Remove old price error if valid price is selected
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next[fieldName];
+          return next;
+        });
+      }
+    }
   };
 
   return (
@@ -842,7 +1009,7 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
 
           <div className="flex grow flex-col overflow-hidden">
             <div className="hide-scrollbar grow space-y-5 overflow-y-auto px-4 py-4 sm:px-6">
-              {/* Row 1: Lead Selector and Quotation number */}
+              {/* Row 1: Lead Selector */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Combobox
@@ -850,7 +1017,6 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                     displayField="label"
                     value={normalizedComboboxValue}
                     onChange={(val: any) => {
-                      // Normalizes single-object select events into matching state shapes
                       if (val && !Array.isArray(val)) {
                         setSelectedLead([val]);
                       } else {
@@ -865,88 +1031,80 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                     <p className="text-error mt-1 text-xs">{errors.lead}</p>
                   )}
                 </div>
-
-                <Input
-                  label="Quotation No"
-                  required
-                  placeholder="Generating..."
-                  value={qNo || "Generating..."}
-                  disabled
-                  onChange={() => {}}
-                />
               </div>
 
-              {/* Row 2: Customer details split clean into 3-columns */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Input
-                  label="Customer"
-                  placeholder="Customer Name"
-                  value={customerName}
-                  disabled
-                  onChange={() => {}}
-                />
+              <div className="dark:border-dark-500 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div className="grid grid-cols-1 sm:grid-cols-2">
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Quotation No
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {qNo || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      City
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {city || "-"}
+                    </span>
+                  </div>
 
-                <Input
-                  label="Mobile"
-                  placeholder="Mobile"
-                  value={mobile}
-                  disabled
-                  onChange={() => {}}
-                />
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Customer
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {customerName || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Address
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {address || "-"}
+                    </span>
+                  </div>
 
-                <Input
-                  label="Email"
-                  placeholder="Email"
-                  value={email}
-                  disabled
-                  onChange={() => {}}
-                />
-              </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Mobile
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {mobile || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Model
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {modelOptions?.find((item) => item.id === model)?.label ||
+                        model ||
+                        "-"}
+                    </span>
+                  </div>
 
-              {/* Row 3: City and Model split clean into 3-columns */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Input
-                  label="City"
-                  placeholder="City"
-                  value={city}
-                  disabled
-                  onChange={() => {}}
-                />
-
-                <div className="sm:col-span-2 lg:col-span-2">
-                  <Listbox
-                    label="Model"
-                    data={modelOptions}
-                    value={
-                      modelOptions.find((item) => item.id === model) || null
-                    }
-                    onChange={() => {}}
-                    placeholder="Model"
-                    displayField="label"
-                    disabled
-                  />
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Email
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {email || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Remark
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {remark || "-"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-
-              {/* Row 4: Large Textareas */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Textarea
-                  label="Address"
-                  rows={3}
-                  placeholder="Address"
-                  value={address}
-                  disabled
-                  onChange={() => {}}
-                />
-
-                <Textarea
-                  label="Remark"
-                  rows={3}
-                  placeholder="Remark"
-                  value={remark}
-                  disabled
-                  onChange={() => {}}
-                />
               </div>
 
               {/* Separator */}
@@ -971,20 +1129,31 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                 </div>
               </div>
 
-              {/* Row 5: All 17 technical spec dropdowns, matching sketch order */}
               {/* Row 5: All 17 technical spec dropdowns */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {/* 1 - Trailer */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Trailer Detail")}
                     displayField="label"
                     value={trailer[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Trailer Detail", setTrailer)
+                      handleMasterChange(
+                        value,
+                        "Trailer Detail",
+                        setTrailer,
+                        "trailer",
+                      )
                     }
-                    placeholder="Select Trailer"
-                    label="Select Trailer"
+                    placeholder={
+                      vehicleType === "tipper"
+                        ? "Select Tipper"
+                        : "Select Trailer"
+                    }
+                    label={
+                      vehicleType === "tipper"
+                        ? "Select Tipper"
+                        : "Select Trailer"
+                    }
                     searchFields={["label"]}
                   />
                   {errors.trailer && (
@@ -992,36 +1161,35 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                   )}
                 </div>
 
-                {/* 2 - Main Chassis */}
-                {vehicleType === "trailer" && (
-                  <div>
-                    <Combobox
-                      data={getMasterOptions("Main Chassis")}
-                      displayField="label"
-                      value={chassis[0] || null}
-                      onChange={(value: any) =>
-                        handleMasterChange(value, "Main Chassis", setChassis)
-                      }
-                      placeholder="Select Main Chassis"
-                      label="Select Main Chassis"
-                      searchFields={["label"]}
-                    />
-                    {errors.chassis && (
-                      <p className="text-error mt-1 text-xs">
-                        {errors.chassis}
-                      </p>
-                    )}
-                  </div>
-                )}
+                <div>
+                  <Combobox
+                    data={getMasterOptions("Main Chassis")}
+                    displayField="label"
+                    value={chassis[0] || null}
+                    onChange={(value: any) =>
+                      handleMasterChange(
+                        value,
+                        "Main Chassis",
+                        setChassis,
+                        "chassis",
+                      )
+                    }
+                    placeholder="Select Main Chassis"
+                    label="Select Main Chassis"
+                    searchFields={["label"]}
+                  />
+                  {errors.chassis && (
+                    <p className="text-error mt-1 text-xs">{errors.chassis}</p>
+                  )}
+                </div>
 
-                {/* 3 - Body */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Body Details")}
                     displayField="label"
                     value={body[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Body Details", setBody)
+                      handleMasterChange(value, "Body Details", setBody, "body")
                     }
                     placeholder="Select Body"
                     label="Select Body"
@@ -1032,14 +1200,18 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                   )}
                 </div>
 
-                {/* 4 - Hydraulic */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Hyd Kit")}
                     displayField="label"
                     value={hydraulic[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Hyd Kit", setHydraulic)
+                      handleMasterChange(
+                        value,
+                        "Hyd Kit",
+                        setHydraulic,
+                        "hydraulic",
+                      )
                     }
                     placeholder="Select Hydraulic"
                     label="Select Hyd"
@@ -1052,88 +1224,101 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                   )}
                 </div>
 
-                {/* 5 - Axle */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Axle")}
-                    displayField="label"
-                    value={axle[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(value, "Axle", setAxle)
-                    }
-                    placeholder="Select Axle"
-                    label="Select Axle"
-                    searchFields={["label"]}
-                  />
-                  {errors.axle && (
-                    <p className="text-error mt-1 text-xs">{errors.axle}</p>
-                  )}
-                </div>
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Axle")}
+                      displayField="label"
+                      value={axle[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(value, "Axle", setAxle, "axle")
+                      }
+                      placeholder="Select Axle"
+                      label="Select Axle"
+                      searchFields={["label"]}
+                    />
+                    {errors.axle && (
+                      <p className="text-error mt-1 text-xs">{errors.axle}</p>
+                    )}
+                  </div>
+                )}
 
-                {/* 6 - Suspension */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Suspension")}
-                    displayField="label"
-                    value={suspension[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(value, "Suspension", setSuspension)
-                    }
-                    placeholder="Select Suspension"
-                    label="Select Suspension"
-                    searchFields={["label"]}
-                  />
-                  {errors.suspension && (
-                    <p className="text-error mt-1 text-xs">
-                      {errors.suspension}
-                    </p>
-                  )}
-                </div>
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Suspension")}
+                      displayField="label"
+                      value={suspension[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(
+                          value,
+                          "Suspension",
+                          setSuspension,
+                          "suspension",
+                        )
+                      }
+                      placeholder="Select Suspension"
+                      label="Select Suspension"
+                      searchFields={["label"]}
+                    />
+                    {errors.suspension && (
+                      <p className="text-error mt-1 text-xs">
+                        {errors.suspension}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-                {/* 7 - Tyre */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Tyre")}
-                    displayField="label"
-                    value={tyre[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(value, "Tyre", setTyre)
-                    }
-                    placeholder="Select Tyre"
-                    label="Select Tyre"
-                    searchFields={["label"]}
-                  />
-                  {errors.tyre && (
-                    <p className="text-error mt-1 text-xs">{errors.tyre}</p>
-                  )}
-                </div>
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Tyre")}
+                      displayField="label"
+                      value={tyre[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(value, "Tyre", setTyre, "tyre")
+                      }
+                      placeholder="Select Tyre"
+                      label="Select Tyre"
+                      searchFields={["label"]}
+                    />
+                    {errors.tyre && (
+                      <p className="text-error mt-1 text-xs">{errors.tyre}</p>
+                    )}
+                  </div>
+                )}
 
-                {/* 8 - Rim */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Rim")}
-                    displayField="label"
-                    value={rim[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(value, "Rim", setRim)
-                    }
-                    placeholder="Select Rim"
-                    label="Select Rim"
-                    searchFields={["label"]}
-                  />
-                  {errors.rim && (
-                    <p className="text-error mt-1 text-xs">{errors.rim}</p>
-                  )}
-                </div>
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Rim")}
+                      displayField="label"
+                      value={rim[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(value, "Rim", setRim, "rim")
+                      }
+                      placeholder="Select Rim"
+                      label="Select Rim"
+                      searchFields={["label"]}
+                    />
+                    {errors.rim && (
+                      <p className="text-error mt-1 text-xs">{errors.rim}</p>
+                    )}
+                  </div>
+                )}
 
-                {/* 9 - King Pin */}
                 <div>
                   <Combobox
                     data={getMasterOptions("King Pin")}
                     displayField="label"
                     value={kingPin[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "King Pin", setKingPin)
+                      handleMasterChange(
+                        value,
+                        "King Pin",
+                        setKingPin,
+                        "kingPin",
+                      )
                     }
                     placeholder="Select King Pin"
                     label="Select King Pin"
@@ -1144,54 +1329,70 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                   )}
                 </div>
 
-                {/* 10 - Landing Leg */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Landing Leg")}
-                    displayField="label"
-                    value={landingLeg[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(value, "Landing Leg", setLandingLeg)
-                    }
-                    placeholder="Select Landing Leg"
-                    label="Select Landing Leg"
-                    searchFields={["label"]}
-                  />
-                  {errors.landingLeg && (
-                    <p className="text-error mt-1 text-xs">
-                      {errors.landingLeg}
-                    </p>
-                  )}
-                </div>
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Landing Leg")}
+                      displayField="label"
+                      value={landingLeg[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(
+                          value,
+                          "Landing Leg",
+                          setLandingLeg,
+                          "landingLeg",
+                        )
+                      }
+                      placeholder="Select Landing Leg"
+                      label="Select Landing Leg"
+                      searchFields={["label"]}
+                    />
+                    {errors.landingLeg && (
+                      <p className="text-error mt-1 text-xs">
+                        {errors.landingLeg}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-                {/* 11 - Brake System */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Brake system")}
-                    displayField="label"
-                    value={brakeSystem[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(value, "Brake system", setBrakeSystem)
-                    }
-                    placeholder="Select Brake System"
-                    label="Select Brake System"
-                    searchFields={["label"]}
-                  />
-                  {errors.brakeSystem && (
-                    <p className="text-error mt-1 text-xs">
-                      {errors.brakeSystem}
-                    </p>
-                  )}
-                </div>
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Brake system")}
+                      displayField="label"
+                      value={brakeSystem[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(
+                          value,
+                          "Brake system",
+                          setBrakeSystem,
+                          "brakeSystem",
+                        )
+                      }
+                      placeholder="Select Brake System"
+                      label="Select Brake System"
+                      searchFields={["label"]}
+                    />
+                    {errors.brakeSystem && (
+                      <p className="text-error mt-1 text-xs">
+                        {errors.brakeSystem}
+                      </p>
+                    )}
+                  </div>
+                )}
 
-                {/* 12 - Mudguard */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Mudgaurd")}
                     displayField="label"
                     value={mudguard[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Mudgaurd", setMudguard)
+                      handleMasterChange(
+                        value,
+                        "Mudgaurd",
+                        setMudguard,
+                        "mudguard",
+                      )
                     }
                     placeholder="Select Mudguard"
                     label="Select Mudguard"
@@ -1202,53 +1403,62 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                   )}
                 </div>
 
-                {/* 13 - Paint / Color */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Paint")}
                     displayField="label"
                     value={color[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Paint", setColor)
+                      handleMasterChange(value, "Paint", setColor, "color")
                     }
                     placeholder="Select Paint"
                     label="Select Paint"
                     searchFields={["label"]}
                   />
-                </div>
 
-                {/* 14 - Electrical & Reflective Tapes */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Electrical & Reflective tapes")}
-                    displayField="label"
-                    value={electricalTapes[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(
-                        value,
-                        "Electrical & Reflective tapes",
-                        setElectricalTapes,
-                      )
-                    }
-                    placeholder="Electrical & Reflective Tapes"
-                    label="Electrical & Reflective Tapes"
-                    searchFields={["label"]}
-                  />
-                  {errors.electricalTapes && (
-                    <p className="text-error mt-1 text-xs">
-                      {errors.electricalTapes}
-                    </p>
+                  {errors.color && (
+                    <p className="text-error mt-1 text-xs">{errors.color}</p>
                   )}
                 </div>
 
-                {/* 15 - SUPD & RUPD */}
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Electrical & Reflective tapes")}
+                      displayField="label"
+                      value={electricalTapes[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(
+                          value,
+                          "Electrical & Reflective tapes",
+                          setElectricalTapes,
+                          "electricalTapes",
+                        )
+                      }
+                      placeholder="Electrical & Reflective Tapes"
+                      label="Electrical & Reflective Tapes"
+                      searchFields={["label"]}
+                    />
+                    {errors.electricalTapes && (
+                      <p className="text-error mt-1 text-xs">
+                        {errors.electricalTapes}
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <div>
                   <Combobox
                     data={getMasterOptions("SUPD & RUPD")}
                     displayField="label"
                     value={supdRupd[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "SUPD & RUPD", setSupdRupd)
+                      handleMasterChange(
+                        value,
+                        "SUPD & RUPD",
+                        setSupdRupd,
+                        "supdRupd",
+                      )
                     }
                     placeholder="SUPD & RUPD"
                     label="SUPD & RUPD"
@@ -1259,14 +1469,13 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                   )}
                 </div>
 
-                {/* 16 - Tool Box */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Tool Box")}
                     displayField="label"
                     value={box[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Tool Box", setBox)
+                      handleMasterChange(value, "Tool Box", setBox, "box")
                     }
                     placeholder="Tool Box"
                     label="Tool Box"
@@ -1277,32 +1486,34 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                   )}
                 </div>
 
-                {/* 17 - Spare Wheel Carrier */}
-                <div>
-                  <Combobox
-                    data={getMasterOptions("Spare Wheel Carrier")}
-                    displayField="label"
-                    value={spareWheelCarrier[0] || null}
-                    onChange={(value: any) =>
-                      handleMasterChange(
-                        value,
-                        "Spare Wheel Carrier",
-                        setSpareWheelCarrier,
-                      )
-                    }
-                    placeholder="Spare Wheel Carrier"
-                    label="Spare Wheel Carrier"
-                    searchFields={["label"]}
-                  />
-                  {errors.spareWheelCarrier && (
-                    <p className="text-error mt-1 text-xs">
-                      {errors.spareWheelCarrier}
-                    </p>
-                  )}
-                </div>
+                {vehicleType === "trailer" && (
+                  <div>
+                    <Combobox
+                      data={getMasterOptions("Spare Wheel Carrier")}
+                      displayField="label"
+                      value={spareWheelCarrier[0] || null}
+                      onChange={(value: any) =>
+                        handleMasterChange(
+                          value,
+                          "Spare Wheel Carrier",
+                          setSpareWheelCarrier,
+                          "spareWheelCarrier",
+                        )
+                      }
+                      placeholder="Spare Wheel Carrier"
+                      label="Spare Wheel Carrier"
+                      searchFields={["label"]}
+                    />
+                    {errors.spareWheelCarrier && (
+                      <p className="text-error mt-1 text-xs">
+                        {errors.spareWheelCarrier}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Warranty - rich text editor */}
+              {/* Warranty */}
               <div>
                 <p className="dark:text-dark-100 mb-1.5 text-sm font-medium text-gray-800">
                   Warranty
@@ -1314,7 +1525,7 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
                 />
               </div>
 
-              {/* Row 7: Discount then Basic Cost / GST / Final Amount */}
+              {/* Discount + totals */}
               <div>
                 <p className="dark:text-dark-100 mb-1.5 text-sm font-medium text-gray-800">
                   Discount
@@ -1346,21 +1557,27 @@ const response = await Get("employee/sales-executive/createmaster/list", {}, fal
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                 <Input
                   label="Basic Cost"
-                  value={`₹ ${basePrice.toLocaleString("en-IN")}`}
+                  value={`₹ ${afterDiscount.toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}`}
                   disabled
                   onChange={() => {}}
                 />
 
                 <Input
                   label="GST 18%"
-                  value={`₹ ${gstAmount.toLocaleString("en-IN")}`}
+                  value={`₹ ${gstAmount.toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}`}
                   disabled
                   onChange={() => {}}
                 />
 
                 <Input
                   label="Final Amount"
-                  value={`₹ ${finalPrice.toLocaleString("en-IN")}`}
+                  value={`₹ ${finalPrice.toLocaleString("en-IN", {
+                    maximumFractionDigits: 2,
+                  })}`}
                   disabled
                   onChange={() => {}}
                 />

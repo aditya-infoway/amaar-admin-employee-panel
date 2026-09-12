@@ -22,14 +22,14 @@ import { createColumns, createExportColumns } from "./columns";
 import { Enquiry, mapApiLeadToEnquiry } from "./data";
 
 export default function EnquiryPage() {
-  // FIX — sessionStorage ko state se read karo, component mount ke time,
+  // FIX — localStorage ko state se read karo, component mount ke time,
   // na ki module-load time (jab tak company select hi nahi hua tha)
   const [financialYearId, setFinancialYearId] = useState<string>(
-    () => sessionStorage.getItem("financialYearId") || "",
+    () => localStorage.getItem("financialYearId") || "",
   );
 
   useEffect(() => {
-    const fyId = sessionStorage.getItem("financialYearId") || "";
+    const fyId = localStorage.getItem("financialYearId") || "";
     if (fyId !== financialYearId) setFinancialYearId(fyId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -69,26 +69,30 @@ export default function EnquiryPage() {
     }
   };
 
-  useEffect(() => {
-    fetchList();
-    // model dropdown ek hi baar load — drawer aur table dono use karenge
-    (async () => {
-      try {
-        const response = await Get("employee/model/list", {}, false);
-        if (response.data?.success) {
-          setModelOptions(
-            (response.data.data || []).map((item: any) => ({
-              id: String(item.modelId ?? item.id),
-              label: item.modelName ?? item.label,
-            })),
-          );
-        }
-      } catch (error) {
-        // silent - table model label "—" dikha dega
+useEffect(() => {
+  fetchList();
+  // model dropdown ek hi baar load — drawer aur table dono use karenge
+  (async () => {
+    try {
+      const response = await Get(
+        "employee/sales-executive/finished-goods/list",
+        {},
+        false,
+      );
+      if (response.data?.success) {
+        setModelOptions(
+          (response.data.data || []).map((item: any) => ({
+            id: String(item.itemId),
+            label: item.itemName,
+          })),
+        );
       }
-    })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    } catch (error) {
+      // silent - table model label "—" dikha dega
+    }
+  })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, []);
 
   const columns = useMemo(() => createColumns(modelOptions), [modelOptions]);
   const exportColumns = useMemo(() => createExportColumns(modelOptions), [modelOptions]);

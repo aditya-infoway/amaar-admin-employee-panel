@@ -14,19 +14,8 @@ const protectedRoutes: RouteObject = {
   id: "protected",
   Component: AuthGuard,
   children: [
-    // The dynamic layout supports both the main layout and the sideblock.
     {
-  Component: DynamicLayout,
-    children: [
-        {
-          path: "*",
-          Component: RoleRoutes,
-        },
-      ],
-    },
-    // The app layout supports only the main layout. Avoid using it for other layouts.
-    {
-      Component: AppLayout,
+      Component: DynamicLayout,
       children: [
         {
           path: "settings",
@@ -34,27 +23,24 @@ const protectedRoutes: RouteObject = {
             Component: (await import("@/app/pages/settings/Layout")).default,
           }),
           children: [
-            {
-              index: true,
-              element: <Navigate to="/settings/general" />,
-            },
+            { index: true, element: <Navigate to="/settings/general" /> },
             {
               path: "general",
               lazy: async () => ({
-                Component: (
-                  await import("@/app/pages/settings/sections/General")
-                ).default,
+                Component: (await import("@/app/pages/settings/sections/General")).default,
               }),
             },
             {
               path: "appearance",
               lazy: async () => ({
-                Component: (
-                  await import("@/app/pages/settings/sections/Appearance")
-                ).default,
+                Component: (await import("@/app/pages/settings/sections/Appearance")).default,
               }),
             },
           ],
+        },
+        {
+          path: "*",
+          Component: RoleRoutes,
         },
       ],
     },

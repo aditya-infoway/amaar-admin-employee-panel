@@ -5,12 +5,12 @@ import { salesExecutiveNavigation } from "./segments/SaleExecutive";
 export function useNavigation() {
  const { user } = useAuthContext();
 
- const roleId = Number(window.sessionStorage.getItem("roleId"));
+ const roleId = Number(window.localStorage.getItem("roleId"));
 
  switch (roleId) {
-  case 2:
+  case 1:
    return salesExecutiveNavigation;
-  case 14:
+  case 5:
    return securityNavigation;
   default:
    return [];
