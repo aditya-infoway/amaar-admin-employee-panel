@@ -54,6 +54,7 @@ const emptyFormValues: EnquiryFormValues = {
 };
 
 // ===== Naye enquiry create karte waqt default creator type =====
+// ===== Naye enquiry create karte waqt default creator type =====
 const DEFAULT_CREATED_TYPE = "Sale Executive";
 
 type DrawerStep = "form" | "otp";
@@ -104,26 +105,70 @@ export function EnquiryDrawer({
 }, []);
 
   // ===== Model list ab dynamic API se aayegi =====
-  useEffect(() => {
-    if (!isOpen) return;
-    (async () => {
-      try {
-        const response = await Get("employee/model/list", {}, false);
-        if (response.data?.success) {
-          const options: ModelOption[] = (response.data.data || []).map(
-            (item: any) => ({
-              id: String(item.modelId ?? item.id),
-              label: item.modelName ?? item.label,
-            }),
-          );
-          setModelOptions(options);
-        }
-      } catch (error) {
-        toasterrormsg("Model list load nahi ho payi.");
-      }
-    })();
-  }, [isOpen]);
+// useEffect(() => {
+//   if (!isOpen) return;
 
+//   const loadFinishedGoods = async () => {
+//     try {
+//       const response = await Get(
+//         "employee/sales-executive/finished-goods/list",   // ⭐ "itemmaster" hataya
+//         {},
+//         false,
+//       );
+
+//       if (response.data?.success) {
+//         const options: ModelOption[] = (response.data.data || []).map(
+//           (item: any) => ({
+//             id: String(item.itemId),
+//             label: item.itemName,
+//           }),
+//         );
+
+//         setModelOptions(options);
+//       } else {
+//         setModelOptions([]);
+//       }
+//     } catch (error) {
+//       console.error("Finished Goods load error:", error);
+//       setModelOptions([]);
+//       toasterrormsg("Unable to load Finished Goods items.");
+//     }
+//   };
+
+//   loadFinishedGoods();
+// }, [isOpen]);
+useEffect(() => {
+  if (!isOpen) return;
+
+  const loadFinishedGoods = async () => {
+    try {
+      const response = await Get(
+       "employee/sales-executive/finished-goods/list", 
+        {},
+        false,
+      );
+
+      if (response.data?.success) {
+        const options: ModelOption[] = (response.data.data || []).map(
+          (item: any) => ({
+            id: String(item.itemId),
+            label: item.itemName,
+          }),
+        );
+
+        setModelOptions(options);
+      } else {
+        setModelOptions([]);
+      }
+    } catch (error) {
+      console.error("Finished Goods load error:", error);
+      setModelOptions([]);
+      toasterrormsg("Unable to load Finished Goods items.");
+    }
+  };
+
+  loadFinishedGoods();
+}, [isOpen]);
   // ===== Naye enquiry ka Lead Code purchase ke bill-no ki tarah generate hoga =====
   const fetchNextLeadId = async () => {
     setLeadIdLoading(true);
@@ -216,8 +261,8 @@ export function EnquiryDrawer({
           toasterrormsg(response.data?.message || "Enquiry update nahi ho payi.");
         }
       } else {
-        // ===== employeeId sessionStorage se, createdType default "Sale Executive" =====
-        const employeeId = sessionStorage.getItem("employeeId") || "";
+        // ===== employeeId localStorage se, createdType default "Sale Executive" =====
+        const employeeId = localStorage.getItem("employeeId") || "";
 
         const response = await Post(
           "employee/sales-executive/lead/create",
@@ -243,6 +288,7 @@ export function EnquiryDrawer({
       setSaving(false);
     }
   };
+
 
   const handleResendOtp = () => {
     const otp = Math.floor(1000 + Math.random() * 9000).toString();

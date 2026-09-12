@@ -61,8 +61,8 @@ useEffect(() => {
     try {
       setLoading(true);
 
-      const financialYearId = sessionStorage.getItem("financialYearId");
-      const role = sessionStorage.getItem("role") || "";
+      const financialYearId = localStorage.getItem("financialYearId");
+      const role = localStorage.getItem("role") || "";
 
       const response = await Get(
         "employee/sales-executive/quotation/list",

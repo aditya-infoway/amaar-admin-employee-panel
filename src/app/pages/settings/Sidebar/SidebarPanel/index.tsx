@@ -56,7 +56,7 @@ export function SidebarPanel() {
 
           <div className="dark:bg-dark-500 mx-4 my-4 h-px bg-gray-200"></div>
 
-          <ul className="space-y-1.5 px-2 font-medium">
+          {/* <ul className="space-y-1.5 px-2 font-medium">
             <li>
               <Button
                 component={Link}
@@ -88,7 +88,7 @@ export function SidebarPanel() {
                 <span>Ask a Question</span>
               </Button>
             </li>
-          </ul>
+          </ul> */}
         </ScrollShadow>
         <Footer />
       </div>

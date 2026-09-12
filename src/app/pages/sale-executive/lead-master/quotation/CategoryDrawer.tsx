@@ -22,14 +22,10 @@ import {
   toastsuccessmsg,
 } from "@/ApiHelper";
 
-// TEMP: static option lists so the drawer compiles/works standalone.
-// Replace each of these with a real fetch (masterStorage / API) once
-// the backend endpoints for these masters are ready — the rest of the
-// component only depends on the {id, label, price} shape, so nothing
-// else needs to change when you wire these up dynamically.
 interface DropdownOption {
   id: string;
   label: string;
+  code?: string;
   price?: number;
 }
 
@@ -79,6 +75,7 @@ interface CreateMasterOption {
   createMasterId: string | number;
   type: string;
   description: string;
+  code?: string;
   actualItem?: any[];
   exShowroom?: number;
   effectiveDate?: string;
@@ -142,20 +139,21 @@ export function QuotationDrawer({
   const [leadOptions, setLeadOptions] = useState<LeadOption[]>([]);
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [createMasterData, setCreateMasterData] = useState<
-    CreateMasterOption[]
-  >([]);
+ 
+const [createMasterData, setCreateMasterData] =
+  useState<CreateMasterOption[]>([]);
 
+  const [createPricingData, setCreatePricingData] = useState<
+    { code: string; exShowroomPrice: number }[]
+  >([]);
   // Refreshed every time the drawer opens so newly added leads show up
+  // ===== Employee session se role/id, backend already filters "Sale Executive" ka apna data =====
   useEffect(() => {
     const fetchLeads = async () => {
       if (!isOpen) return;
 
       try {
-        const role = sessionStorage.getItem("roleName") || "";
-        const userId = sessionStorage.getItem("employeeId") || "";
-
-     
+        const role = localStorage.getItem("roleName") || "Sale Executive";
 
         const response = await Get(
           "employee/sales-executive/lead/list",
@@ -163,19 +161,8 @@ export function QuotationDrawer({
           false,
         );
 
-     
-
         if (response?.data?.success || response?.data?.status === 200) {
-          let leads = response.data.data || [];
-
-
-
-        if (role === "Sale Executive" && userId) {
-          leads = leads.filter(
-            (lead: any) =>
-              String(lead.createdBy) === String(userId),
-          );
-        }
+          const leads = response.data.data || [];
 
           setLeadOptions(
             leads.map((lead: any) => ({
@@ -192,9 +179,7 @@ export function QuotationDrawer({
               label: `${lead.leadCode} - ${lead.name} - ${lead.number}`,
             })),
           );
-
-    
-        } 
+        }
       } catch (error) {
         console.error("Enquiry list error:", error);
         toasterrormsg("Unable to load enquiries.");
@@ -205,14 +190,13 @@ export function QuotationDrawer({
   }, [isOpen]);
 
   const [modelOptions, setModelOptions] = useState<DropdownOption[]>([]);
-
   useEffect(() => {
     if (!isOpen) return;
 
     const fetchModels = async () => {
       try {
         const response = await Get(
-          "employee/sales-executive/model/list",
+          "employee/sales-executive/finished-goods/list", // 👈 same source as employee EnquiryDrawer
           {},
           false,
         );
@@ -222,8 +206,8 @@ export function QuotationDrawer({
 
           setModelOptions(
             models.map((item: any) => ({
-              id: String(item.modelId ?? item.id),
-              label: item.modelName ?? item.label,
+              id: String(item.itemId), // 👈 match EnquiryDrawer's saved id
+              label: item.itemName,
             })),
           );
         }
@@ -398,10 +382,12 @@ export function QuotationDrawer({
       setPosition("");
     }
     setErrors({});
-  }, [quotation, isOpen, createMasterData]);
+  }, [quotation, isOpen]);
 
   // Handle auto-fill reliably by parsing both arrays or direct single objects
   useEffect(() => {
+    if (leadOptions.length === 0) return; // don't clear fields while leads are still loading
+
     const lead = Array.isArray(selectedLead)
       ? selectedLead[0]
       : (selectedLead as LeadOption | null);
@@ -422,8 +408,6 @@ export function QuotationDrawer({
 
     if (!fullLead) return;
 
-   
-
     setCustomerName(fullLead.name || "");
     setMobile(fullLead.number || "");
     setEmail(fullLead.email || "");
@@ -431,10 +415,9 @@ export function QuotationDrawer({
     setCity(fullLead.city || "");
     setModel(String(fullLead.model ?? ""));
     setRemark(fullLead.remark || "");
-  }, [selectedLead, leadOptions, modelOptions]);
+  }, [selectedLead, leadOptions]);
 
-  // When switching to Tipper, clear the Main Chassis selection since it's hidden
-  // When switching to Tipper, clear fields hidden for Tipper vehicles
+  // When switching to Tipper, clear the fields hidden for Tipper
   useEffect(() => {
     if (vehicleType === "tipper") {
       setAxle([]);
@@ -518,7 +501,7 @@ export function QuotationDrawer({
       if (!isOpen || isEditing) return;
 
       try {
-        const financialYearId = sessionStorage.getItem("financialYearId");
+        const financialYearId = localStorage.getItem("financialYearId");
 
         if (!financialYearId) {
           console.error("Financial Year ID not found");
@@ -531,9 +514,16 @@ export function QuotationDrawer({
           false,
         );
 
-        if (response?.data?.success || response?.data?.status === 200) {
-          setQNo(response.data.data.qNo);
-        }
+         console.log("NEXT QUOTATION API RESPONSE:", response?.data);
+
+const generatedQNo = response?.data?.data?.qNo;
+
+if (generatedQNo) {
+  setQNo(String(generatedQNo));
+} else {
+  console.error("Quotation number missing:", response?.data);
+  toasterrormsg("Quotation number was not generated.");
+}
       } catch (error) {
         console.error("Quotation number generation error:", error);
         toasterrormsg("Unable to generate quotation number.");
@@ -592,8 +582,109 @@ export function QuotationDrawer({
     return found ? [found] : [];
   };
 
+  const PRICE_ERROR =
+    "Price not set. Please set the price in Create Pricing first.";
+
+  const validatePrices = () => {
+    const nextErrors: Record<string, string> = {};
+
+    const fields: {
+      field: string;
+      selected: DropdownOption[];
+      optionalForTipper?: boolean;
+    }[] = [
+      { field: "trailer", selected: trailer },
+      { field: "chassis", selected: chassis },
+      { field: "body", selected: body },
+      { field: "hydraulic", selected: hydraulic },
+
+      {
+        field: "axle",
+        selected: axle,
+        optionalForTipper: true,
+      },
+      {
+        field: "suspension",
+        selected: suspension,
+        optionalForTipper: true,
+      },
+      {
+        field: "tyre",
+        selected: tyre,
+        optionalForTipper: true,
+      },
+      {
+        field: "rim",
+        selected: rim,
+        optionalForTipper: true,
+      },
+
+      { field: "kingPin", selected: kingPin },
+
+      {
+        field: "landingLeg",
+        selected: landingLeg,
+        optionalForTipper: true,
+      },
+
+      {
+        field: "brakeSystem",
+        selected: brakeSystem,
+        optionalForTipper: true,
+      },
+
+      { field: "mudguard", selected: mudguard },
+      { field: "color", selected: color },
+
+      {
+        field: "electricalTapes",
+        selected: electricalTapes,
+        optionalForTipper: true,
+      },
+
+      { field: "supdRupd", selected: supdRupd },
+      { field: "box", selected: box },
+
+      {
+        field: "spareWheelCarrier",
+        selected: spareWheelCarrier,
+        optionalForTipper: true,
+      },
+    ];
+
+    fields.forEach(({ field, selected, optionalForTipper }) => {
+      if (vehicleType === "tipper" && optionalForTipper) {
+        return;
+      }
+
+      const option = selected?.[0];
+
+      // Selection itself is handled by validate().
+      if (!option) {
+        return;
+      }
+
+      const price = Number(option.price);
+
+      if (!Number.isFinite(price) || price <= 0) {
+        nextErrors[field] = PRICE_ERROR;
+      }
+    });
+
+    setErrors((previous) => ({
+      ...previous,
+      ...nextErrors,
+    }));
+
+    return Object.keys(nextErrors).length === 0;
+  };
+
   const handleSubmit = async () => {
     if (!validate()) return;
+
+    if (!validatePrices()) {
+      return;
+    }
 
     const lead = selectedLead?.[0];
 
@@ -602,15 +693,16 @@ export function QuotationDrawer({
       return;
     }
 
-    const financialYearId = sessionStorage.getItem("financialYearId");
+    const financialYearId = localStorage.getItem("financialYearId");
 
     if (!financialYearId) {
       toasterrormsg("Financial Year not found. Please select a company year.");
       return;
     }
 
-    const userId = sessionStorage.getItem("employeeId") || "Admin";
-    const role = sessionStorage.getItem("roleName") || "Sale Executive";
+    // ===== employeeId/role localStorage se — employee panel ka apna context =====
+    const employeeId = localStorage.getItem("employeeId") || "";
+    const roleName = localStorage.getItem("roleName") || "Sale Executive";
 
     const payload = {
       financialYearId: Number(financialYearId),
@@ -627,7 +719,9 @@ export function QuotationDrawer({
       vehicleType,
 
       trailer: idOf(trailer),
+
       chassis: idOf(chassis),
+
       body: idOf(body),
       hydraulic: idOf(hydraulic),
       axle: idOf(axle),
@@ -651,8 +745,8 @@ export function QuotationDrawer({
 
       position: position || null,
 
-      createdBy: userId,
-      createdType: role,
+      createdBy: quotation?.createdBy || employeeId || "Sale Executive",
+      createdType: roleName,
     };
 
     try {
@@ -772,22 +866,62 @@ export function QuotationDrawer({
     fetchCreateMaster();
   }, []);
 
+  useEffect(() => {
+    const fetchCreatePricing = async () => {
+      try {
+        const response = await Get(
+          "employee/sales-executive/createpricing/list",
+          {},
+          false,
+        );
+
+        if (response?.data?.status === 200 || response?.data?.success) {
+          setCreatePricingData(response?.data?.data || []);
+        }
+      } catch (error) {
+        console.error("Create Pricing list error:", error);
+      }
+    };
+
+    fetchCreatePricing();
+  }, []);
+
   const getMasterOptions = (type: string): DropdownOption[] => {
+    const priceByCode = new Map<string, number>();
+
+    createPricingData.forEach((p: any) => {
+      if (p.code) {
+        const price = Number(p.exShowroomPrice);
+
+        priceByCode.set(
+          String(p.code).trim().toLowerCase(),
+          Number.isFinite(price) ? price : 0,
+        );
+      }
+    });
+
     return createMasterData
       .filter(
         (item) => item.type?.trim().toLowerCase() === type.trim().toLowerCase(),
       )
-      .map((item) => ({
-        id: String(item.createMasterId),
-        label: item.description,
-        price: Number(item.exShowroom) || 0,
-      }));
+      .map((item: CreateMasterOption) => {
+        const code = String(item.code || "").trim();
+        const codeKey = code.toLowerCase();
+
+        return {
+          id: String(item.createMasterId),
+          label: item.description,
+          code,
+          price: codeKey ? (priceByCode.get(codeKey) ?? 0) : 0,
+        };
+      });
   };
 
   const handleMasterChange = (
     value: any,
     type: string,
     setter: React.Dispatch<React.SetStateAction<DropdownOption[]>>,
+    fieldName: string,
   ) => {
     const options = getMasterOptions(type);
 
@@ -795,6 +929,14 @@ export function QuotationDrawer({
 
     if (!selected) {
       setter([]);
+
+      // Clear error when dropdown is cleared
+      setErrors((prev) => {
+        const next = { ...prev };
+        delete next[fieldName];
+        return next;
+      });
+
       return;
     }
 
@@ -805,6 +947,25 @@ export function QuotationDrawer({
     );
 
     setter(matchedOption ? [matchedOption] : []);
+
+    // Check price immediately after selection
+    if (matchedOption) {
+      const price = Number(matchedOption.price);
+
+      if (!Number.isFinite(price) || price <= 0) {
+        setErrors((prev) => ({
+          ...prev,
+          [fieldName]: PRICE_ERROR,
+        }));
+      } else {
+        // Remove old price error if valid price is selected
+        setErrors((prev) => {
+          const next = { ...prev };
+          delete next[fieldName];
+          return next;
+        });
+      }
+    }
   };
 
   return (
@@ -848,7 +1009,7 @@ export function QuotationDrawer({
 
           <div className="flex grow flex-col overflow-hidden">
             <div className="hide-scrollbar grow space-y-5 overflow-y-auto px-4 py-4 sm:px-6">
-              {/* Row 1: Lead Selector and Quotation number */}
+              {/* Row 1: Lead Selector */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <div>
                   <Combobox
@@ -856,7 +1017,6 @@ export function QuotationDrawer({
                     displayField="label"
                     value={normalizedComboboxValue}
                     onChange={(val: any) => {
-                      // Normalizes single-object select events into matching state shapes
                       if (val && !Array.isArray(val)) {
                         setSelectedLead([val]);
                       } else {
@@ -871,88 +1031,80 @@ export function QuotationDrawer({
                     <p className="text-error mt-1 text-xs">{errors.lead}</p>
                   )}
                 </div>
-
-                <Input
-                  label="Quotation No"
-                  required
-                  placeholder="Generating..."
-                  value={qNo || "Generating..."}
-                  disabled
-                  onChange={() => {}}
-                />
               </div>
 
-              {/* Row 2: Customer details split clean into 3-columns */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Input
-                  label="Customer"
-                  placeholder="Customer Name"
-                  value={customerName}
-                  disabled
-                  onChange={() => {}}
-                />
+              <div className="dark:border-dark-500 rounded-lg border border-gray-200 dark:border-gray-600">
+                <div className="grid grid-cols-1 sm:grid-cols-2">
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Quotation No
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {qNo || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      City
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {city || "-"}
+                    </span>
+                  </div>
 
-                <Input
-                  label="Mobile"
-                  placeholder="Mobile"
-                  value={mobile}
-                  disabled
-                  onChange={() => {}}
-                />
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Customer
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {customerName || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Address
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {address || "-"}
+                    </span>
+                  </div>
 
-                <Input
-                  label="Email"
-                  placeholder="Email"
-                  value={email}
-                  disabled
-                  onChange={() => {}}
-                />
-              </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Mobile
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {mobile || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 border-b border-gray-100 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Model
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {modelOptions?.find((item) => item.id === model)?.label ||
+                        model ||
+                        "-"}
+                    </span>
+                  </div>
 
-              {/* Row 3: City and Model split clean into 3-columns */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <Input
-                  label="City"
-                  placeholder="City"
-                  value={city}
-                  disabled
-                  onChange={() => {}}
-                />
-
-                <div className="sm:col-span-2 lg:col-span-2">
-                  <Listbox
-                    label="Model"
-                    data={modelOptions}
-                    value={
-                      modelOptions.find((item) => item.id === model) || null
-                    }
-                    onChange={() => {}}
-                    placeholder="Model"
-                    displayField="label"
-                    disabled
-                  />
+                  <div className="flex items-center gap-3 px-4 py-2.5">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Email
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {email || "-"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-2.5 sm:border-l dark:border-gray-700">
+                    <span className="min-w-28 text-xs font-medium tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                      Remark
+                    </span>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                      {remark || "-"}
+                    </span>
+                  </div>
                 </div>
-              </div>
-
-              {/* Row 4: Large Textareas */}
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Textarea
-                  label="Address"
-                  rows={3}
-                  placeholder="Address"
-                  value={address}
-                  disabled
-                  onChange={() => {}}
-                />
-
-                <Textarea
-                  label="Remark"
-                  rows={3}
-                  placeholder="Remark"
-                  value={remark}
-                  disabled
-                  onChange={() => {}}
-                />
               </div>
 
               {/* Separator */}
@@ -979,14 +1131,18 @@ export function QuotationDrawer({
 
               {/* Row 5: All 17 technical spec dropdowns */}
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {/* 1 - Trailer / Tipper (label switches with Vehicle Type) */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Trailer Detail")}
                     displayField="label"
                     value={trailer[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Trailer Detail", setTrailer)
+                      handleMasterChange(
+                        value,
+                        "Trailer Detail",
+                        setTrailer,
+                        "trailer",
+                      )
                     }
                     placeholder={
                       vehicleType === "tipper"
@@ -1005,14 +1161,18 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 2 - Main Chassis (shown for both Tipper and Trailer) */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Main Chassis")}
                     displayField="label"
                     value={chassis[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Main Chassis", setChassis)
+                      handleMasterChange(
+                        value,
+                        "Main Chassis",
+                        setChassis,
+                        "chassis",
+                      )
                     }
                     placeholder="Select Main Chassis"
                     label="Select Main Chassis"
@@ -1023,14 +1183,13 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 3 - Body */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Body Details")}
                     displayField="label"
                     value={body[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Body Details", setBody)
+                      handleMasterChange(value, "Body Details", setBody, "body")
                     }
                     placeholder="Select Body"
                     label="Select Body"
@@ -1041,14 +1200,18 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 4 - Hydraulic */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Hyd Kit")}
                     displayField="label"
                     value={hydraulic[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Hyd Kit", setHydraulic)
+                      handleMasterChange(
+                        value,
+                        "Hyd Kit",
+                        setHydraulic,
+                        "hydraulic",
+                      )
                     }
                     placeholder="Select Hydraulic"
                     label="Select Hyd"
@@ -1061,7 +1224,6 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 5 - Axle (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1069,7 +1231,7 @@ export function QuotationDrawer({
                       displayField="label"
                       value={axle[0] || null}
                       onChange={(value: any) =>
-                        handleMasterChange(value, "Axle", setAxle)
+                        handleMasterChange(value, "Axle", setAxle, "axle")
                       }
                       placeholder="Select Axle"
                       label="Select Axle"
@@ -1081,7 +1243,6 @@ export function QuotationDrawer({
                   </div>
                 )}
 
-                {/* 6 - Suspension (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1089,7 +1250,12 @@ export function QuotationDrawer({
                       displayField="label"
                       value={suspension[0] || null}
                       onChange={(value: any) =>
-                        handleMasterChange(value, "Suspension", setSuspension)
+                        handleMasterChange(
+                          value,
+                          "Suspension",
+                          setSuspension,
+                          "suspension",
+                        )
                       }
                       placeholder="Select Suspension"
                       label="Select Suspension"
@@ -1103,7 +1269,6 @@ export function QuotationDrawer({
                   </div>
                 )}
 
-                {/* 7 - Tyre (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1111,7 +1276,7 @@ export function QuotationDrawer({
                       displayField="label"
                       value={tyre[0] || null}
                       onChange={(value: any) =>
-                        handleMasterChange(value, "Tyre", setTyre)
+                        handleMasterChange(value, "Tyre", setTyre, "tyre")
                       }
                       placeholder="Select Tyre"
                       label="Select Tyre"
@@ -1123,7 +1288,6 @@ export function QuotationDrawer({
                   </div>
                 )}
 
-                {/* 8 - Rim (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1131,7 +1295,7 @@ export function QuotationDrawer({
                       displayField="label"
                       value={rim[0] || null}
                       onChange={(value: any) =>
-                        handleMasterChange(value, "Rim", setRim)
+                        handleMasterChange(value, "Rim", setRim, "rim")
                       }
                       placeholder="Select Rim"
                       label="Select Rim"
@@ -1143,14 +1307,18 @@ export function QuotationDrawer({
                   </div>
                 )}
 
-                {/* 9 - King Pin */}
                 <div>
                   <Combobox
                     data={getMasterOptions("King Pin")}
                     displayField="label"
                     value={kingPin[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "King Pin", setKingPin)
+                      handleMasterChange(
+                        value,
+                        "King Pin",
+                        setKingPin,
+                        "kingPin",
+                      )
                     }
                     placeholder="Select King Pin"
                     label="Select King Pin"
@@ -1161,7 +1329,6 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 10 - Landing Leg (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1169,7 +1336,12 @@ export function QuotationDrawer({
                       displayField="label"
                       value={landingLeg[0] || null}
                       onChange={(value: any) =>
-                        handleMasterChange(value, "Landing Leg", setLandingLeg)
+                        handleMasterChange(
+                          value,
+                          "Landing Leg",
+                          setLandingLeg,
+                          "landingLeg",
+                        )
                       }
                       placeholder="Select Landing Leg"
                       label="Select Landing Leg"
@@ -1183,7 +1355,6 @@ export function QuotationDrawer({
                   </div>
                 )}
 
-                {/* 11 - Brake System (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1195,6 +1366,7 @@ export function QuotationDrawer({
                           value,
                           "Brake system",
                           setBrakeSystem,
+                          "brakeSystem",
                         )
                       }
                       placeholder="Select Brake System"
@@ -1209,14 +1381,18 @@ export function QuotationDrawer({
                   </div>
                 )}
 
-                {/* 12 - Mudguard */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Mudgaurd")}
                     displayField="label"
                     value={mudguard[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Mudgaurd", setMudguard)
+                      handleMasterChange(
+                        value,
+                        "Mudgaurd",
+                        setMudguard,
+                        "mudguard",
+                      )
                     }
                     placeholder="Select Mudguard"
                     label="Select Mudguard"
@@ -1227,22 +1403,24 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 13 - Paint / Color */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Paint")}
                     displayField="label"
                     value={color[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Paint", setColor)
+                      handleMasterChange(value, "Paint", setColor, "color")
                     }
                     placeholder="Select Paint"
                     label="Select Paint"
                     searchFields={["label"]}
                   />
+
+                  {errors.color && (
+                    <p className="text-error mt-1 text-xs">{errors.color}</p>
+                  )}
                 </div>
 
-                {/* 14 - Electrical & Reflective Tapes (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1254,6 +1432,7 @@ export function QuotationDrawer({
                           value,
                           "Electrical & Reflective tapes",
                           setElectricalTapes,
+                          "electricalTapes",
                         )
                       }
                       placeholder="Electrical & Reflective Tapes"
@@ -1268,14 +1447,18 @@ export function QuotationDrawer({
                   </div>
                 )}
 
-                {/* 15 - SUPD & RUPD */}
                 <div>
                   <Combobox
                     data={getMasterOptions("SUPD & RUPD")}
                     displayField="label"
                     value={supdRupd[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "SUPD & RUPD", setSupdRupd)
+                      handleMasterChange(
+                        value,
+                        "SUPD & RUPD",
+                        setSupdRupd,
+                        "supdRupd",
+                      )
                     }
                     placeholder="SUPD & RUPD"
                     label="SUPD & RUPD"
@@ -1286,14 +1469,13 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 16 - Tool Box */}
                 <div>
                   <Combobox
                     data={getMasterOptions("Tool Box")}
                     displayField="label"
                     value={box[0] || null}
                     onChange={(value: any) =>
-                      handleMasterChange(value, "Tool Box", setBox)
+                      handleMasterChange(value, "Tool Box", setBox, "box")
                     }
                     placeholder="Tool Box"
                     label="Tool Box"
@@ -1304,7 +1486,6 @@ export function QuotationDrawer({
                   )}
                 </div>
 
-                {/* 17 - Spare Wheel Carrier (Trailer only) */}
                 {vehicleType === "trailer" && (
                   <div>
                     <Combobox
@@ -1316,6 +1497,7 @@ export function QuotationDrawer({
                           value,
                           "Spare Wheel Carrier",
                           setSpareWheelCarrier,
+                          "spareWheelCarrier",
                         )
                       }
                       placeholder="Spare Wheel Carrier"
@@ -1331,7 +1513,7 @@ export function QuotationDrawer({
                 )}
               </div>
 
-              {/* Warranty - rich text editor */}
+              {/* Warranty */}
               <div>
                 <p className="dark:text-dark-100 mb-1.5 text-sm font-medium text-gray-800">
                   Warranty
@@ -1343,7 +1525,7 @@ export function QuotationDrawer({
                 />
               </div>
 
-              {/* Row 7: Discount then Basic Cost / GST / Final Amount */}
+              {/* Discount + totals */}
               <div>
                 <p className="dark:text-dark-100 mb-1.5 text-sm font-medium text-gray-800">
                   Discount

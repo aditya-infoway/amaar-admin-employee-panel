@@ -4,13 +4,13 @@ import { securityRoutes } from "./security";
 import { SaleExecutiveRoutes } from "./saleExecutive";
 
 export default function RoleRoutes() {
- const roleIdRaw = window.sessionStorage.getItem("roleId");
+ const roleIdRaw = window.localStorage.getItem("roleId");
   const roleId = Number(roleIdRaw);
 
 const roleRoutes =
- roleId === 2
+ roleId === 1
   ? SaleExecutiveRoutes
-  : roleId === 14
+  : roleId === 5
   ? securityRoutes
   : [];
 

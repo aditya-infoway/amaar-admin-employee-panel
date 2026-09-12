@@ -92,11 +92,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const authToken = window.localStorage.getItem("authToken");
         const companyId = window.localStorage.getItem(COMPANY_ID_KEY);
-        const employeeId = window.sessionStorage.getItem(EMPLOYEE_ID_KEY);
+        const employeeId = window.localStorage.getItem(EMPLOYEE_ID_KEY);
 
         if (authToken && isTokenValid(authToken) && companyId && employeeId) {
           setSession(authToken);
-          const userStr = window.sessionStorage.getItem("user");
+          const userStr = window.localStorage.getItem("user");
           const user = userStr ? JSON.parse(userStr) : null;
           dispatch({ type: "INITIALIZE", payload: { isAuthenticated: true, user } });
         } else {
@@ -128,15 +128,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // ✅ CHANGE #2 — companyId/companyName bhi destructure kiya
       const { token, email, employeeId, department, roleId, roleName, employeeName, companyId, companyName } = result.data;
 
-      window.sessionStorage.setItem(PENDING_TOKEN_KEY, token);
-      window.sessionStorage.setItem(PENDING_EMAIL_KEY, email);
+      window.localStorage.setItem(PENDING_TOKEN_KEY, token);
+      window.localStorage.setItem(PENDING_EMAIL_KEY, email);
       setSession(token); // axios Authorization header set karega
 
-      window.sessionStorage.setItem("employeeId", employeeId);
-      window.sessionStorage.setItem("department", department);
-      window.sessionStorage.setItem("roleId", roleId);
-      window.sessionStorage.setItem("roleName", roleName);
-      window.sessionStorage.setItem("employeeName", employeeName);
+      window.localStorage.setItem("employeeId", employeeId);
+      window.localStorage.setItem("department", department);
+      window.localStorage.setItem("roleId", roleId);
+      window.localStorage.setItem("roleName", roleName);
+      window.localStorage.setItem("employeeName", employeeName);
 
       toastsuccessmsg(result.message);
 
@@ -158,7 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // STEP 2: company select/create hone ke baad final auth
   const completeAuth = (companyId: string) => {
-    const token = state.pendingToken || window.sessionStorage.getItem(PENDING_TOKEN_KEY);
+    const token = state.pendingToken || window.localStorage.getItem(PENDING_TOKEN_KEY);
 
     if (!token) {
       toasterrormsg("Session expired. Please login again.");
@@ -168,10 +168,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(token);
     window.localStorage.setItem("authToken", token);
     window.localStorage.setItem(COMPANY_ID_KEY, companyId);
-    window.sessionStorage.setItem("authToken", token);
-    window.sessionStorage.setItem("user", JSON.stringify(state.user));
-    window.sessionStorage.removeItem(PENDING_TOKEN_KEY);
-    window.sessionStorage.removeItem(PENDING_EMAIL_KEY);
+    window.localStorage.setItem("authToken", token);
+    window.localStorage.setItem("user", JSON.stringify(state.user));
+    window.localStorage.removeItem(PENDING_TOKEN_KEY);
+    window.localStorage.removeItem(PENDING_EMAIL_KEY);
 
     dispatch({ type: "SESSION_ESTABLISHED", payload: { user: state.user } });
   };
@@ -180,10 +180,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
     window.localStorage.removeItem("authToken");
     window.localStorage.removeItem(COMPANY_ID_KEY);
-    window.sessionStorage.removeItem("authToken");
-    window.sessionStorage.removeItem("user");
-    window.sessionStorage.removeItem(PENDING_TOKEN_KEY);
-    window.sessionStorage.removeItem(PENDING_EMAIL_KEY);
+    window.localStorage.removeItem("authToken");
+    window.localStorage.removeItem("user");
+    window.localStorage.removeItem(PENDING_TOKEN_KEY);
+    window.localStorage.removeItem(PENDING_EMAIL_KEY);
     dispatch({ type: "LOGOUT" });
   };
 

@@ -28,7 +28,7 @@ export function MainPanel({
   activeSegmentPath,
 }: MainPanelProps) {
   const { cardSkin } = useThemeContext();
-
+  const menuNav = nav.filter((item) => item.id !== settings.id);
   return (
     <div className="main-panel">
       <div
@@ -49,7 +49,7 @@ export function MainPanel({
         </div>
 
         <Menu
-          nav={nav}
+          nav={menuNav}
           activeSegmentPath={activeSegmentPath}
           setActiveSegmentPath={setActiveSegmentPath}
         />
