@@ -1,5 +1,5 @@
 import { useEffect, useReducer, ReactNode } from "react";
-import { Post, toastsuccessmsg, toasterrormsg } from "@/Apihelper";
+import { Post, toastsuccessmsg, toasterrormsg } from "@/ApiHelper";
 import { isTokenValid, setSession } from "@/utils/jwt";
 import { AuthProvider as AuthContext, AuthContextType } from "./context";
 import { User } from "@/@types/user";
