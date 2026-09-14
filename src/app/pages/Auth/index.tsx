@@ -10,11 +10,41 @@ import { useAuthContext } from "@/app/contexts/auth/context";
 import { APP_LOGO } from "@/constants/app";
 import { AuthFormValues, schema } from "./schema";
 import { Page } from "@/components/shared/Page";
+import { Get, toasterrormsg } from "@/ApiHelper";
 
 // ----------------------------------------------------------------------
 
+// ✅ CHANGE — roleId NUMBER hai (jaisa useNavigation.tsx / RoleRoutes.tsx me
+// dikha — 1, 14, 6 waghera), isliye ye array bhi numbers ka hi hona chahiye,
+// warna "6" !== 6 wali type-mismatch se check silently fail ho jata.
+// 👉 Cutting Manager = 6 (confirmed cuttingmanager route/nav se). Baaki 7
+// roles (Welding/Fitting/Blasting/Paint/Washing/QC/Production Manager) ke
+// actual numeric roleId apni DB se daal dena — abhi placeholder rakhe hain.
+const DIRECT_DASHBOARD_ROLE_IDS = [
+  6, // Cutting Manager
+  7, // Welding Manager — TODO: actual roleId daalo
+  8, // Fitting Manager — TODO: actual roleId daalo
+  9, // Blasting Manager — TODO: actual roleId daalo
+  10, // Paint Manager — TODO: actual roleId daalo
+  11, // Washing Manager — TODO: actual roleId daalo
+  12, // QC Manager — TODO: actual roleId daalo
+  13,
+  // Production Manager — TODO: actual roleId daalo
+];
+
+// ✅ CHANGE — same shape jo select-company.tsx me hai, taaki wahi API response
+// yaha bhi directly use ho sake
+interface FinancialYearRow {
+  financialYearId: number;
+  companyDetailsId: number;
+  companyId: number;
+  startDate: string;
+  endDate: string;
+  companyName: string;
+}
+
 export default function SignIn() {
-  const { login, errorMessage } = useAuthContext();
+  const { login, completeAuth, errorMessage } = useAuthContext();
   const navigate = useNavigate();
   const {
     register,
@@ -30,7 +60,46 @@ export default function SignIn() {
 
   const onSubmit = async (data: AuthFormValues) => {
     try {
-      await login({ email: data.email, password: data.password });
+      const result = await login({ email: data.email, password: data.password });
+
+      // ✅ CHANGE — ab roleId check hota hai (Number cast safe comparison ke liye)
+      if (result && DIRECT_DASHBOARD_ROLE_IDS.includes(Number(result.roleId))) {
+        // ✅ NEW — select-company.tsx jaisi hi API call — hardcoded ID ki jagah
+        // real companyId/financialYearId server se lete hain
+        try {
+          const response = await Get("employee/financial-years", {}, false);
+          const rows: FinancialYearRow[] = response.data?.success
+            ? response.data.data || []
+            : [];
+
+          if (rows.length > 0) {
+            // in roles ke employee ki ek hi company/FY hoti hai, isliye pehla row lo
+            const row = rows[0];
+
+            localStorage.setItem("financialYearId", String(row.financialYearId));
+            localStorage.setItem("companyDetailsId", String(row.companyDetailsId));
+
+            completeAuth(String(row.companyId), {
+              user: {
+                companyId: row.companyId,
+                companyName: row.companyName,
+                email: data.email,
+              } as any,
+            });
+
+            navigate("/dashboards/home"); // select-company.tsx wala hi sahi path
+            return;
+          }
+
+          // ✅ NEW — agar kisi wajah se company/FY nahi mila, to safety net ke
+          // taur pe normal select-company page pe bhej do (crash nahi hoga)
+          toasterrormsg("Company details not found. Please select manually.");
+        } catch (fyErr) {
+          toasterrormsg("Something went wrong while fetching your company.");
+        }
+      }
+
+      // baaki sab roles (aur upar wala fallback) ke liye — company select/create page
       navigate("/select-company");
     } catch (err) {
       // error handled by context

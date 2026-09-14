@@ -9,8 +9,21 @@ export interface AuthContextType {
   user: User | null;
   pendingToken: string | null;
   pendingEmail: string | null;
-  login: (credentials: { email: string; password: string }) => Promise<void>;
-  completeAuth: (companyId: string) => void;
+  login: (credentials: { email: string; password: string }) => Promise<
+    | {
+        companyId: string;
+        companyName: string;
+        roleId: string | number;
+        roleName: string;
+        employeeName: string;
+        department: string;
+      }
+    | void
+  >;
+  completeAuth: (
+    companyId: string,
+    options?: { user?: User; financialYearId?: string },
+  ) => void;
   logout: () => Promise<void>;
 }
 
