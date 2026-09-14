@@ -2,7 +2,7 @@ import { Navigate, RouteObject } from "react-router";
 
 import AuthGuard from "@/middleware/AuthGuard";
 import { DynamicLayout } from "../layouts/DynamicLayout";
-import { AppLayout } from "../layouts/AppLayout";
+// import { AppLayout } from "../layouts/AppLayout";
 import RoleRoutes from "./RoleRoutes";
 
 /**
