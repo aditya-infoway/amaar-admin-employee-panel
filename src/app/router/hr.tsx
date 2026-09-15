@@ -3,15 +3,11 @@ import { Navigate } from "react-router";
 // Dashboard
 import Dashboard from "@/app/pages/hr/dashboards/home/crm-analytics";
 
-// enquiry
-// import Enquiry from "@/app/pages/sale-executive/lead-master/enquiry";
-// import Quotation from "@/app/pages/sale-executive/lead-master/quotation";
-
-// // Followups
-// import TodayFollowups from "@/app/pages/sale-executive/followup/todayfolloups";
-// import Followup from "@/app/pages/sale-executive/followup/followup";
 import employeelist from "@/app/pages/hr/employee/employeelist";
 import employeeRegister from "@/app/pages/hr/employee/employeeRegister";
+import EmployeeRegisterWizard from "@/app/pages/hr/employee/employeeRegister/form";
+import EmployeeEditForm from "@/app/pages/hr/employee/employeeRegister/form/employeeEditForm";
+
 export const hrRoutes = [
   // ✅ FIX — root "/" ke liye index route add kiya, warna blank aata hai
   {
@@ -47,34 +43,47 @@ export const hrRoutes = [
       },
       {
         path: "employeeRegister",
-        Component: employeeRegister,
+        children: [
+          {
+            index: true,
+            Component: employeeRegister, // List page
+          },
+          {
+            path: "create",
+            Component: EmployeeRegisterWizard, // New employee — 4-step form
+          },
+          {
+            path: "edit/:id",
+            Component: EmployeeEditForm, // Edit existing employee
+          },
+        ],
       },
     ],
   },
 
-//    // Followups
-//   {
-//     path: "followups",
-//     children: [
-//       {
-//         index: true,
-//         element: <Navigate to="todayfollowups" replace />,
-//       },
+  //    // Followups
+  //   {
+  //     path: "followups",
+  //     children: [
+  //       {
+  //         index: true,
+  //         element: <Navigate to="todayfollowups" replace />,
+  //       },
 
-//       {
-//         path: "todayfollowups",
-//         Component: TodayFollowups,
-//       },
+  //       {
+  //         path: "todayfollowups",
+  //         Component: TodayFollowups,
+  //       },
 
-//       {
-//         path: "follow-up/:id",
-//         Component: Followup,
-//       },
+  //       {
+  //         path: "follow-up/:id",
+  //         Component: Followup,
+  //       },
 
-//       {
-//         path: "history/:id",
-//         Component: FollowupHistory,
-//       },
-//     ],
-//   },
+  //       {
+  //         path: "history/:id",
+  //         Component: FollowupHistory,
+  //       },
+  //     ],
+  //   },
 ];

@@ -7,7 +7,7 @@ export const departmentOptions: OptionItem[] = [
   { id: "sale", label: "Sale" },
   { id: "production", label: "Production" },
   { id: "security", label: "Security" },
-  // { id: "hrms", label: "HRMS" },
+  { id: "hrms", label: "HRMS" },
   
 ];
 

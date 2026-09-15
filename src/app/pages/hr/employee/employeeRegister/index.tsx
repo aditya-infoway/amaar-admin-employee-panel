@@ -15,17 +15,12 @@ import { Input } from "@/components/ui";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { fuzzyFilter } from "@/utils/react-table/fuzzyFilter";
 import { Get, Delete, toastsuccessmsg, toasterrormsg } from "@/ApiHelper";
-import { exportToExcel, exportToPdf } from "../../../master/shared/export";
-import { MasterTable } from "../../../master/shared/MasterTable";
-import { MasterToolbar } from "../../../master/shared/MasterToolbar";
-import {
-  entryStatusOptions,
-  idProofTypeOptions,
-} from "../../../master/shared/constants";
+import { exportToExcel, exportToPdf } from "../shared/export";
+import { MasterTable } from "../shared/MasterTable";
+import { MasterToolbar } from "../shared/MasterToolbar";
+import { employeeTypeOptions, employeeStatusOptions } from "../employeeRegister/form/constants";
 import { createColumns, exportColumns } from "./columns";
-import { mapApiVisitorEntryToVisitorEntry, VisitorEntry } from "./data";
-import { VisitorExitDrawer } from "./form/VisitorExitDrawer";
-import { printGatePass } from "./form/gatePassPrint";
+import { mapApiEmployeeEntryToEmployeeEntry, EmployeeEntry } from "./data";
 
 function getLabel(
   options: { id: string; label: string }[],
@@ -34,98 +29,135 @@ function getLabel(
   return options.find((item) => item.id === id)?.label || "—";
 }
 
-export default function VisitorEntryListPage() {
+export default function EmployeeListPage() {
   const navigate = useNavigate();
-  const [data, setData] = useState<VisitorEntry[]>([]);
+  const [data, setData] = useState<EmployeeEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [showFilters, setShowFilters] = useState(false);
   const [filterName, setFilterName] = useState("");
-  const [filterIdProof, setFilterIdProof] = useState("");
+  const [filterEmployeeType, setFilterEmployeeType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
-  const [exitVisitor, setExitVisitor] = useState<VisitorEntry | null>(null);
 
   // ---- API se list fetch karo ----
-  const fetchList = async () => {
-    setLoading(true);
-    try {
-      const response = await Get("employee/security/visitorentry/list", {}, false);
-      if (response.data?.success) {
-        setData((response.data.data || []).map(mapApiVisitorEntryToVisitorEntry));
-      } else {
-        toasterrormsg(response.data?.message || "Failed to fetch visitor entries.");
-      }
-    } catch (error) {
-      toasterrormsg("Something went wrong while fetching visitor entries.");
-    } finally {
-      setLoading(false);
-    }
-  };
+ const fetchList = async () => {
+  setLoading(true);
 
+  try {
+    const financialYearId =
+      localStorage.getItem("financialYearId");
+
+   
+
+    const response = await Get(
+      "hr/employee/registered-list",
+      financialYearId
+        ? {
+            financialYearId: Number(financialYearId),
+          }
+        : {},
+      false,
+    );
+
+   
+
+    if (
+      response?.data?.success ||
+      response?.data?.status === 200
+    ) {
+      const apiData =
+        response?.data?.data || [];
+
+    
+
+      const mappedData = apiData.map(
+        mapApiEmployeeEntryToEmployeeEntry
+      );
+
+      setData(mappedData);
+    } else {
+      setData([]);
+
+      toasterrormsg(
+        response?.data?.message ||
+          "Failed to fetch registered employees."
+      );
+    }
+  } catch (error) {
+    console.error(
+      "Registered employee list error:",
+      error
+    );
+
+    setData([]);
+
+    toasterrormsg(
+      "Something went wrong while fetching registered employees."
+    );
+  } finally {
+    setLoading(false);
+  }
+};
   useEffect(() => {
     fetchList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const columns = useMemo(
-    () => createColumns(getLabel, idProofTypeOptions, entryStatusOptions),
+    () => createColumns(getLabel, employeeTypeOptions, employeeStatusOptions),
     [],
   );
 
   const filteredData = useMemo(() => {
     return data.filter((item) => {
-      if (
-        filterName &&
-        !item.fullName.toLowerCase().includes(filterName.toLowerCase())
-      ) {
-        return false;
-      }
-      if (filterIdProof && item.idProofType !== filterIdProof) return false;
-      if (filterStatus && item.status !== filterStatus) return false;
+      const fullName = `${item.firstName} ${item.lastName}`.toLowerCase();
+      if (filterName && !fullName.includes(filterName.toLowerCase())) return false;
+      if (filterEmployeeType && item.employeeType !== filterEmployeeType) return false;
+      if (filterStatus && item.employeeStatus !== filterStatus) return false;
       return true;
     });
-  }, [data, filterName, filterIdProof, filterStatus]);
+  }, [data, filterName, filterEmployeeType, filterStatus]);
 
   const exportRows = filteredData.map((row) => ({
     ...row,
-    idProofTypeLabel: getLabel(idProofTypeOptions, row.idProofType),
-    statusLabel: getLabel(entryStatusOptions, row.status),
+    employeeTypeLabel: getLabel(employeeTypeOptions, row.employeeType),
+    employeeStatusLabel: getLabel(employeeStatusOptions, row.employeeStatus),
   }));
 
   // ---- Delete API call ----
-  const handleDeleteOne = async (row: VisitorEntry) => {
+  const handleDeleteOne = async (row: EmployeeEntry) => {
     try {
       const response = await Delete(
-        "employee/security/visitorentry/delete",
-        { visitorEntryId: Number(row.id) },
+        "hr/employee/delete",
+        { employeeEntryId: Number(row.id) },
         false,
       );
       if (response.data?.success) {
-        toastsuccessmsg(response.data?.message || "Visitor entry deleted successfully.");
+        toastsuccessmsg(response.data?.message || "Employee deleted successfully.");
         setData((prev) => prev.filter((item) => item.id !== row.id));
       } else {
-        toasterrormsg(response.data?.message || "Failed to delete visitor entry.");
+        toasterrormsg(response.data?.message || "Failed to delete employee.");
       }
     } catch (error) {
-      toasterrormsg("Something went wrong while deleting the visitor entry.");
+      toasterrormsg("Something went wrong while deleting the employee.");
     }
   };
 
-  const handleDeleteMany = async (rows: { original: VisitorEntry }[]) => {
+  const handleDeleteMany = async (rows: { original: EmployeeEntry }[]) => {
     try {
       await Promise.all(
         rows.map((r) =>
-          Delete("employee/security/visitorentry/delete", { visitorEntryId: Number(r.original.id) }, false),
+          Delete("hr/employee/delete", { employeeEntryId: Number(r.original.id) }, false),
         ),
       );
       const ids = new Set(rows.map((r) => r.original.id));
       setData((prev) => prev.filter((item) => !ids.has(item.id)));
       setRowSelection({});
-      toastsuccessmsg("Selected visitor entries deleted successfully.");
+      toastsuccessmsg("Selected employees deleted successfully.");
     } catch (error) {
-      toasterrormsg("Something went wrong while deleting visitor entries.");
+      toasterrormsg("Something went wrong while deleting employees.");
     }
   };
 
@@ -135,14 +167,11 @@ export default function VisitorEntryListPage() {
     state: { globalFilter, sorting, rowSelection },
     enableRowSelection: true,
     getRowId: (row) => row.id,
-    meta: {
-      openEditDrawer: (row) =>
-        navigate(`/visitoremaster/edit/${row.original.id}`),
-      openExitDrawer: (row) => setExitVisitor(row.original),
-      deleteRow: (row) => handleDeleteOne(row.original),
-      deleteRows: (rows) => handleDeleteMany(rows),
-      printRow: (row) => printGatePass(row.original),
-    },
+   meta: {
+  openEditDrawer: (row) => navigate(`/employee/employeeRegister/edit/${row.id}`),
+  deleteRow: (row) => handleDeleteOne(row.original),
+  deleteRows: (rows) => handleDeleteMany(rows),
+},
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
     onGlobalFilterChange: setGlobalFilter,
@@ -155,51 +184,44 @@ export default function VisitorEntryListPage() {
   });
 
   return (
-    <Page title="Visitor Entry">
+    <Page title="Employee Master">
       <div className="transition-content w-full pb-8">
         <MasterToolbar
-          title="Visitor Entry"
-          createLabel="New Visitor Entry"
-          searchPlaceholder="Search visitors..."
+          title="Employee Master"
+          createLabel="New Employee"
+          searchPlaceholder="Search employees..."
           table={table}
           showFilters={showFilters}
           onToggleFilters={() => setShowFilters((v) => !v)}
-          onCreate={() => navigate("/visitoremaster/create")}
-          onExportExcel={() =>
-            exportToExcel(exportRows, exportColumns, "visitor-entry")
-          }
+          onCreate={() => navigate("/employee/employeeRegister/create")}
+          onExportExcel={() => exportToExcel(exportRows, exportColumns, "employee-master")}
           onExportPdf={() =>
-            exportToPdf(
-              exportRows,
-              exportColumns,
-              "Visitor Entry List",
-              "visitor-entry",
-            )
+            exportToPdf(exportRows, exportColumns, "Employee Master List", "employee-master")
           }
           filterPanel={
             <div className="grid gap-4 sm:grid-cols-3">
               <Input
-                label="Visitor Name"
+                label="Employee Name"
                 value={filterName}
                 onChange={(e) => setFilterName(e.target.value)}
                 placeholder="Filter by name"
               />
               <Listbox
-                data={[{ id: "", label: "All" }, ...idProofTypeOptions]}
+                data={[{ id: "", label: "All" }, ...employeeTypeOptions]}
                 value={
-                  [{ id: "", label: "All" }, ...idProofTypeOptions].find(
-                    (item) => item.id === filterIdProof,
+                  [{ id: "", label: "All" }, ...employeeTypeOptions].find(
+                    (item) => item.id === filterEmployeeType,
                   ) || { id: "", label: "All" }
                 }
-                onChange={(item) => setFilterIdProof(item.id)}
-                label="ID Proof Type"
+                onChange={(item) => setFilterEmployeeType(item.id)}
+                label="Employee Type"
                 placeholder="All types"
                 displayField="label"
               />
               <Listbox
-                data={[{ id: "", label: "All" }, ...entryStatusOptions]}
+                data={[{ id: "", label: "All" }, ...employeeStatusOptions]}
                 value={
-                  [{ id: "", label: "All" }, ...entryStatusOptions].find(
+                  [{ id: "", label: "All" }, ...employeeStatusOptions].find(
                     (item) => item.id === filterStatus,
                   ) || { id: "", label: "All" }
                 }
@@ -215,21 +237,10 @@ export default function VisitorEntryListPage() {
           table={table}
           columnCount={columns.length}
           emptyMessage={
-            loading
-              ? "Loading visitor entries..."
-              : "No visitor entries found. Click New Visitor Entry to add one."
+            loading ? "Loading employees..." : "No employees found. Click New Employee to add one."
           }
         />
       </div>
-
-      <VisitorExitDrawer
-        visitor={exitVisitor}
-        onClose={() => setExitVisitor(null)}
-        onSaved={() => {
-          setExitVisitor(null);
-          fetchList(); // exit hone ke baad list refresh — status "OUT" ho jayega
-        }}
-      />
     </Page>
   );
 }

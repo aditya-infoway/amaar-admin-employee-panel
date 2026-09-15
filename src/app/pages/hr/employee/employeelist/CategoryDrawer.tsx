@@ -73,7 +73,7 @@ export function EmployeeDrawer({
   const checkUnique = async (mobileNumber: string, email: string) => {
     setChecking(true);
     try {
-      const response = await Get("master/employee/list", {}, false);
+      const response = await Get("hr/employee/list", {}, false);
       if (response.data?.success) {
         const allEmployees: any[] = response.data.data || [];
         const mobileTaken = allEmployees.some(
