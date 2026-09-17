@@ -89,33 +89,43 @@ export default function AttendancePage() {
   return (
     <Page title="Attendance Register">
       <div className="transition-content w-full pb-5">
-        <MasterToolbar
-          title="Attendance Register"
-          searchPlaceholder="Search by employee name..."
-          table={table}
-          showFilters={showFilters}
-          onToggleFilters={() => setShowFilters((v) => !v)}
-          onExportExcel={() => exportToExcel(exportRows, exportColumns, "attendance")}
-          onExportPdf={() =>
-            exportToPdf(exportRows, exportColumns, "Attendance Register", "attendance")
-          }
-          filterPanel={
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Input
-                label="Employee Name"
-                value={filterName}
-                onChange={(e) => setFilterName(e.target.value)}
-                placeholder="Filter by employee name"
-              />
-              <Input
-                label="Date"
-                type="date"
-                value={filterDate}
-                onChange={(e) => setFilterDate(e.target.value)}
-              />
-            </div>
-          }
-        />
+       <MasterToolbar
+  title="Attendance Register"
+  searchPlaceholder="Search by employee name..."
+  table={table}
+  showFilters={showFilters}
+  onToggleFilters={() => setShowFilters((v) => !v)}
+  onExportExcel={() =>
+    exportToExcel(exportRows, exportColumns, "attendance")
+  }
+  onExportPdf={() =>
+    exportToPdf(
+      exportRows,
+      exportColumns,
+      "Attendance Register",
+      "attendance",
+    )
+  }
+  createLabel=""
+  onCreate={() => {}}
+  filterPanel={
+    <div className="grid gap-4 sm:grid-cols-2">
+      <Input
+        label="Employee Name"
+        value={filterName}
+        onChange={(e) => setFilterName(e.target.value)}
+        placeholder="Filter by employee name"
+      />
+
+      <Input
+        label="Date"
+        type="date"
+        value={filterDate}
+        onChange={(e) => setFilterDate(e.target.value)}
+      />
+    </div>
+  }
+/>
 
         <MasterTable
           table={table}
