@@ -199,12 +199,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.isAuthenticated]);
 
   // STEP 1: login validate — OTP nahi
-  const login = async (credentials: { email: string; password: string }) => {
+  const login = async (credentials: { email: string; password: string;  latitude?: number; longitude?: number; }) => {
     dispatch({ type: "LOGIN_REQUEST" });
     try {
       const response = await Post(
         "employee/login",
-        { email: credentials.email, password: credentials.password },
+        { email: credentials.email, password: credentials.password ,  latitude: credentials.latitude,   longitude: credentials.longitude, },
         false,
       );
       const result = response.data;
@@ -234,7 +234,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem("roleId", roleId);
       window.localStorage.setItem("roleName", roleName);
       window.localStorage.setItem("employeeName", employeeName);
-
+ window.localStorage.setItem("latitude", String(credentials.latitude ?? ""));
+      window.localStorage.setItem("longitude", String(credentials.longitude ?? ""));
       toastsuccessmsg(result.message);
 
       dispatch({
@@ -297,6 +298,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      await Post("employee/checkout", {}, false);
+    } catch (err) {
+      // checkout fail ho jaye to bhi logout process rukna nahi chahiye
+      console.error("Checkout failed:", err);
+    }
     setSession(null);
     clearAuthStorage();
     dispatch({ type: "LOGOUT" });
@@ -325,4 +332,6 @@ function clearAuthStorage() {
   window.localStorage.removeItem("roleId");
   window.localStorage.removeItem("roleName");
   window.localStorage.removeItem("employeeName");
+    window.localStorage.removeItem("latitude");
+  window.localStorage.removeItem("longitude");
 }

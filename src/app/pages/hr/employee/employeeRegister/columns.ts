@@ -4,35 +4,30 @@ import {
   SelectCell,
   SelectHeader,
 } from "@/components/shared/table/SelectCheckbox";
-import {
-  createExitRowActions,
-  createRowActions,
-} from "../../../master/shared/createRowActions";
+import { createRowActions } from "../shared/createRowActions";
 import { TextCell } from "../../../master/shared/tableCells";
-import { VisitorEntry } from "./data";
+import { EmployeeEntry } from "./data";
 
 function displayValue(value: unknown): string {
   if (value == null || value === "") return "—";
   return String(value);
 }
 
-function formatCheckInTime(value: string): string {
+function formatDate(value: string): string {
   if (!value) return "—";
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return value;
-  return parsed.toLocaleString();
+  return parsed.toLocaleDateString();
 }
 
-const RowActions = createRowActions<VisitorEntry>("visitor");
-const ExitRowActions = createExitRowActions<VisitorEntry>();
+const RowActions = createRowActions<EmployeeEntry>("employee");
 
 export function createColumns(
   getLabel: (options: { id: string; label: string }[], id: string) => string,
-  idProofTypeOptions: { id: string; label: string }[],
-  statusOptions: { id: string; label: string }[],
-  mode: "list" | "exit" = "list",
-): ColumnDef<VisitorEntry>[] {
-  const columns: ColumnDef<VisitorEntry>[] = [
+  employeeTypeOptions: { id: string; label: string }[],
+  employeeStatusOptions: { id: string; label: string }[],
+): ColumnDef<EmployeeEntry>[] {
+  return [
     {
       id: "select",
       header: SelectHeader,
@@ -40,61 +35,56 @@ export function createColumns(
       enableSorting: false,
     },
     {
-      id: "visitorId",
-      accessorFn: (row) => displayValue(row.visitorId),
-      header: "Visitor ID",
+      id: "employeeId",
+      accessorFn: (row) => displayValue(row.employeeId),
+      header: "Employee ID",
       cell: TextCell,
     },
     {
       id: "fullName",
-      accessorFn: (row) => displayValue(row.fullName),
-      header: "Visitor Name",
+      accessorFn: (row) =>
+        displayValue([row.firstName].filter(Boolean).join(" ")),
+      header: "Employee Name",
       cell: TextCell,
     },
     {
-      id: "mobileNumber",
-      accessorFn: (row) => displayValue(row.mobileNumber),
+      id: "personalMobileNo",
+      accessorFn: (row) => displayValue(row.personalMobileNo),
       header: "Contact",
       cell: TextCell,
     },
     {
-      id: "idProofType",
+      id: "department",
+      accessorKey: "department",
+      header: "Department",
+      cell: TextCell,
+    },
+    {
+      id: "designation",
+      accessorKey: "designation",
+      header: "Designation",
+      cell: TextCell,
+    },
+    {
+      id: "employeeType",
       accessorFn: (row) => {
-        const label = getLabel(idProofTypeOptions, row.idProofType);
-        return label === "—" ? displayValue(row.idProofType) : label;
+        const label = getLabel(employeeTypeOptions, row.employeeType);
+        return label === "—" ? displayValue(row.employeeType) : label;
       },
-      header: "ID Proof",
+      header: "Employee Type",
       cell: TextCell,
     },
     {
-      id: "company",
-      accessorKey: "company",
-      header: "Company",
+      id: "joiningDate",
+      accessorFn: (row) => formatDate(row.joiningDate),
+      header: "Joining Date",
       cell: TextCell,
     },
     {
-      id: "personToMeet",
-      accessorKey: "personToMeet",
-      header: "Person to Meet",
-      cell: TextCell,
-    },
-    {
-      id: "badgeNumber",
-      accessorFn: (row) => displayValue(row.badgeNumber),
-      header: "Badge #",
-      cell: TextCell,
-    },
-    {
-      id: "checkInTime",
-      accessorFn: (row) => formatCheckInTime(row.checkInTime),
-      header: "Check-in Time",
-      cell: TextCell,
-    },
-    {
-      id: "status",
+      id: "employeeStatus",
       accessorFn: (row) => {
-        const label = getLabel(statusOptions, row.status);
-        return label === "—" ? displayValue(row.status) : label;
+        const label = getLabel(employeeStatusOptions, row.employeeStatus);
+        return label === "—" ? displayValue(row.employeeStatus) : label;
       },
       header: "Status",
       cell: TextCell,
@@ -102,29 +92,22 @@ export function createColumns(
     {
       id: "actions",
       header: "Actions",
-      cell: mode === "exit" ? ExitRowActions : RowActions,
+      cell: RowActions,
       enableSorting: false,
     },
   ];
-
-  if (mode === "exit") {
-    return columns.filter((column) => column.id !== "status");
-  }
-
-  return columns.filter((column) => column.id !== "checkInTime");
 }
 
 export const exportColumns = [
-  { key: "visitorId" as const, header: "Visitor ID" },
-  { key: "fullName" as const, header: "Visitor Name" },
-  { key: "mobileNumber" as const, header: "Contact" },
-  { key: "idProofTypeLabel" as const, header: "ID Proof" },
-  { key: "idProofNumber" as const, header: "ID Number" },
-  { key: "company" as const, header: "Company" },
-  { key: "personToMeet" as const, header: "Person to Meet" },
-  { key: "purpose" as const, header: "Purpose" },      
-  { key: "entryTime" as const, header: "Entry Time" },
-  { key: "exitTime" as const, header: "Exit Time" },
-  { key: "badgeNumber" as const, header: "Badge #" },
-  { key: "statusLabel" as const, header: "Status" },
+  { key: "employeeId" as const, header: "Employee ID" },
+  { key: "firstName" as const, header: "First Name" },
+
+  { key: "personalMobileNo" as const, header: "Contact" },
+  { key: "personalEmail" as const, header: "Email" },
+  { key: "department" as const, header: "Department" },
+  { key: "designation" as const, header: "Designation" },
+  { key: "employeeTypeLabel" as const, header: "Employee Type" },
+  { key: "joiningDate" as const, header: "Joining Date" },
+  { key: "employeeStatusLabel" as const, header: "Status" },
+
 ];

@@ -5,6 +5,7 @@ import {
   getSortedRowModel,
   RowSelectionState,
   SortingState,
+  Row,
   useReactTable,
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
@@ -107,6 +108,7 @@ export default function EmployeePage() {
   }));
 
   // ---- Save (create or update) via API ----
+ // ---- Save (create or update) via API ----
   const handleSave = async (item: Employee) => {
     const payload: any = {
       department: item.department,
@@ -123,7 +125,7 @@ export default function EmployeePage() {
         if (item.password) payload.password = item.password;
 
         const response = await Put(
-          "master/employee/update",
+          "hr/employee/update",
           { employeeId: Number(item.id), ...payload },
           false
         );
@@ -135,7 +137,23 @@ export default function EmployeePage() {
         }
       } else {
         payload.password = item.password;
-        const response = await Post("master/employee/create", payload, false);
+
+        // ===== createdBy/createdType ab login type ke hisaab se dynamic =====
+        // Employee login: employeeId + uska roleName (jaise "HR")
+        // Company/Super Admin login: companyId + "Super Admin"
+        const employeeId = localStorage.getItem("employeeId");
+        const roleName = localStorage.getItem("roleName");
+        const companyId = localStorage.getItem("companyId");
+
+        if (employeeId) {
+          payload.createdBy = Number(employeeId);
+          payload.createdType = roleName || "Employee";
+        } else {
+          payload.createdBy = Number(companyId);
+          payload.createdType = "Super Admin";
+        }
+
+        const response = await Post("hr/employee/create", payload, false);
         if (response.data?.success) {
           toastsuccessmsg(response.data?.message || "Employee created successfully.");
           fetchAll();
@@ -151,7 +169,7 @@ export default function EmployeePage() {
   const handleDeleteOne = async (row: Employee) => {
     try {
       const response = await Delete(
-        "master/employee/delete",
+        "hr/employee/delete",
         { employeeId: Number(row.id) },
         false
       );
@@ -170,7 +188,7 @@ export default function EmployeePage() {
     try {
       await Promise.all(
         rows.map((r) =>
-          Delete("master/employee/delete", { employeeId: Number(r.original.id) }, false)
+          Delete("hr/employee/delete", { employeeId: Number(r.original.id) }, false)
         )
       );
       const ids = new Set(rows.map((r) => r.original.id));
@@ -188,14 +206,16 @@ export default function EmployeePage() {
     state: { globalFilter, sorting, rowSelection },
     enableRowSelection: true,
     getRowId: (row) => row.id,
-    meta: {
-      openEditDrawer: (row: Employee) => {
-        setEditing(row);
-        setDrawerOpen(true);
-      },
-      deleteRow: (row) => handleDeleteOne(row.original),
-      deleteRows: (rows) => handleDeleteMany(rows),
-    },
+   meta: {
+  openEditDrawer: (row: Row<Employee>) => {
+    setEditing(row.original);
+    setDrawerOpen(true);
+  },
+
+  deleteRow: (row) => handleDeleteOne(row.original),
+
+  deleteRows: (rows) => handleDeleteMany(rows),
+},
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
     onGlobalFilterChange: setGlobalFilter,
