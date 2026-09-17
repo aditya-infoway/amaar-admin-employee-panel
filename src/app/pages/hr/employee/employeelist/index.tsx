@@ -108,6 +108,7 @@ export default function EmployeePage() {
   }));
 
   // ---- Save (create or update) via API ----
+ // ---- Save (create or update) via API ----
   const handleSave = async (item: Employee) => {
     const payload: any = {
       department: item.department,
@@ -136,6 +137,22 @@ export default function EmployeePage() {
         }
       } else {
         payload.password = item.password;
+
+        // ===== createdBy/createdType ab login type ke hisaab se dynamic =====
+        // Employee login: employeeId + uska roleName (jaise "HR")
+        // Company/Super Admin login: companyId + "Super Admin"
+        const employeeId = localStorage.getItem("employeeId");
+        const roleName = localStorage.getItem("roleName");
+        const companyId = localStorage.getItem("companyId");
+
+        if (employeeId) {
+          payload.createdBy = Number(employeeId);
+          payload.createdType = roleName || "Employee";
+        } else {
+          payload.createdBy = Number(companyId);
+          payload.createdType = "Super Admin";
+        }
+
         const response = await Post("hr/employee/create", payload, false);
         if (response.data?.success) {
           toastsuccessmsg(response.data?.message || "Employee created successfully.");

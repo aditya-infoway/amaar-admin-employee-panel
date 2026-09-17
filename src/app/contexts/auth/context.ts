@@ -9,7 +9,7 @@ export interface AuthContextType {
   user: User | null;
   pendingToken: string | null;
   pendingEmail: string | null;
-  login: (credentials: { email: string; password: string }) => Promise<
+  login: (credentials: { email: string; password: string;  latitude?: number;  longitude?: number;}) => Promise<
     | {
         companyId: string;
         companyName: string;

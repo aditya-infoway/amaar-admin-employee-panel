@@ -21,5 +21,12 @@ export const employee: NavigationTree = {
             title: "Employee Register",
             icon: "employeeRegister.list",
         },
+          {
+            id: "employee.attandence",
+            type: "item",
+            path: "/employee/attandence",
+            title: "Attandence Register",
+            icon: "employeeRegister.list",
+        },
     ],
 };
