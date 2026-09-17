@@ -7,7 +7,7 @@ import employeelist from "@/app/pages/hr/employee/employeelist";
 import employeeRegister from "@/app/pages/hr/employee/employeeRegister";
 import EmployeeRegisterWizard from "@/app/pages/hr/employee/employeeRegister/form";
 import EmployeeEditForm from "@/app/pages/hr/employee/employeeRegister/form/employeeEditForm";
-
+import attandence from  "@/app/pages/hr/employee/attandence";
 export const hrRoutes = [
   // ✅ FIX — root "/" ke liye index route add kiya, warna blank aata hai
   {
@@ -57,6 +57,10 @@ export const hrRoutes = [
             Component: EmployeeEditForm, // Edit existing employee
           },
         ],
+      },
+       {
+        path: "attandence",
+        Component: attandence,
       },
     ],
   },

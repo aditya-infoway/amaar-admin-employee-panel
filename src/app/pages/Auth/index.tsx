@@ -57,10 +57,33 @@ export default function SignIn() {
       password: "",
     },
   });
+// Local Imports ke baad, DIRECT_DASHBOARD_ROLE_IDS se pehle ya import section mein:
+const getCurrentLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) {
+      resolve(null);
+      return;
+    }
 
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        resolve({
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        });
+      },
+      () => {
+        resolve(null);
+      },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+};
   const onSubmit = async (data: AuthFormValues) => {
     try {
-      const result = await login({ email: data.email, password: data.password });
+          const location = await getCurrentLocation();
+      const result = await login({ email: data.email, password: data.password, latitude: location?.latitude,
+        longitude: location?.longitude, });
 
       // ✅ CHANGE — ab roleId check hota hai (Number cast safe comparison ke liye)
       if (result && DIRECT_DASHBOARD_ROLE_IDS.includes(Number(result.roleId))) {
