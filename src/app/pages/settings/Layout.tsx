@@ -6,7 +6,7 @@ import { Card } from "@/components/ui";
 export default function Settings() {
   return (
     <Page title="Setting">
-      <Card className="h-full w-full p-4 sm:px-5 2xl:mx-auto 2xl:max-w-5xl">
+          <Card className="w-full p-4 sm:px-5 2xl:mx-auto 2xl:max-w-5xl mt-5 mb-5">
         <Outlet />
       </Card>
     </Page>

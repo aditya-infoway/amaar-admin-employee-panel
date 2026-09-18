@@ -11,7 +11,7 @@ import { APP_LOGO } from "@/constants/app";
 import { AuthFormValues, schema } from "./schema";
 import { Page } from "@/components/shared/Page";
 import { Get, toasterrormsg } from "@/ApiHelper";
-
+import { getCurrentLocation } from "@/utils/geolocation";
 // ----------------------------------------------------------------------
 
 // ✅ CHANGE — roleId NUMBER hai (jaisa useNavigation.tsx / RoleRoutes.tsx me
@@ -58,27 +58,7 @@ export default function SignIn() {
     },
   });
 // Local Imports ke baad, DIRECT_DASHBOARD_ROLE_IDS se pehle ya import section mein:
-const getCurrentLocation = (): Promise<{ latitude: number; longitude: number } | null> => {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      resolve(null);
-      return;
-    }
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        resolve({
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        });
-      },
-      () => {
-        resolve(null);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  });
-};
   const onSubmit = async (data: AuthFormValues) => {
     try {
           const location = await getCurrentLocation();

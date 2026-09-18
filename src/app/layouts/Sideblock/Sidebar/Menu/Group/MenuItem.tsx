@@ -6,7 +6,7 @@ import invariant from "tiny-invariant";
 
 // Local Imports
 import { Badge } from "@/components/ui";
-import { useBreakpointsContext } from "@/app/contexts/breakpoint/context";
+// import { useBreakpointsContext } from "@/app/contexts/breakpoint/context";
 import { useSidebarContext } from "@/app/contexts/sidebar/context";
 import { type NavigationTree } from "@/@types/navigation";
 import { navigationIcons } from "@/app/navigation/icons";
@@ -15,7 +15,7 @@ import { navigationIcons } from "@/app/navigation/icons";
 
 export function MenuItem({ data, showIcon = true }: { data: NavigationTree; showIcon?: boolean }) {
   const { icon, path, id, transKey, title } = data;
-  const { lgAndDown } = useBreakpointsContext();
+  // const { lgAndDown } = useBreakpointsContext();
   const { close } = useSidebarContext();
   const { t } = useTranslation();
 
@@ -34,8 +34,7 @@ export function MenuItem({ data, showIcon = true }: { data: NavigationTree; show
 
   const info = useRouteLoaderData("root")?.[id]?.info;
 
-  const handleMenuItemClick = () => lgAndDown && close();
-
+  const handleMenuItemClick = () => close();
   return (
     <div className="relative flex px-3">
       <NavLink
