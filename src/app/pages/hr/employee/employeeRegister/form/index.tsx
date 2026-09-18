@@ -98,6 +98,7 @@ export interface EmployeeEntry {
   personalEmail: string;
 
   // Identity & KYC
+  employeePhoto?: File | string | null;
   aadharNumber?: string;
   aadharCardUpload?: File | string | null;
   drivingLicenceNumber?: string;
@@ -151,6 +152,7 @@ const emptyEmployee = (): EmployeeEntry => ({
   bloodGroup: "",
   personalMobileNo: "",
   personalEmail: "",
+  employeePhoto: null,
   aadharNumber: "",
   aadharCardUpload: null,
   drivingLicenceNumber: "",
@@ -257,6 +259,28 @@ const KYC_FIELDS: Array<{
   },
 ];
 
+// ---------------- Small helper: image preview for a File | existing URL string ----------------
+function usePreviewUrl(value: File | string | null | undefined) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (value instanceof File) {
+      const objectUrl = URL.createObjectURL(value);
+      setPreviewUrl(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
+    }
+
+    if (typeof value === "string" && value) {
+      setPreviewUrl(value);
+      return;
+    }
+
+    setPreviewUrl(null);
+  }, [value]);
+
+  return previewUrl;
+}
+
 export default function EmployeeRegisterWizard() {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
@@ -287,8 +311,6 @@ export default function EmployeeRegisterWizard() {
       try {
         const financialYearId = localStorage.getItem("financialYearId");
 
-
-
         if (!financialYearId) {
           toasterrormsg(
             "Financial Year not found. Please select a company year.",
@@ -305,8 +327,6 @@ export default function EmployeeRegisterWizard() {
           { financialYearId },
           false,
         );
-
-
 
         if (response?.data?.success || response?.data?.status === 200) {
           setValue("employeeId", response.data.data.employeeId);
@@ -367,6 +387,8 @@ export default function EmployeeRegisterWizard() {
   }, [selectedEmployee]);
 
   const sameAsPermanentAddress = watch("sameAsPermanentAddress");
+  const employeePhotoValue = watch("employeePhoto");
+  const employeePhotoPreview = usePreviewUrl(employeePhotoValue);
 
   // ===== Current address country/state/city cascading dropdowns =====
   const [currentCountryCode, setCurrentCountryCode] = useState("");
@@ -434,6 +456,10 @@ export default function EmployeeRegisterWizard() {
     const values = getValues();
     const nextErrors: Record<string, string> = {};
 
+    if (!values.employeePhoto) {
+      nextErrors.employeePhoto = "Employee photo is required";
+    }
+
     KYC_FIELDS.forEach(({ numberField, uploadField, label }) => {
       const number = (values[numberField] || "").toString().trim();
       const file = values[uploadField];
@@ -449,6 +475,59 @@ export default function EmployeeRegisterWizard() {
     setKycErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
   };
+
+  const renderEmployeePhotoField = () => (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
+        Employee Photo
+      </label>
+
+      <Controller
+        control={control}
+        name="employeePhoto"
+        render={({ field: { onChange } }) => (
+          <div className="flex items-center gap-4">
+            {employeePhotoPreview ? (
+              <img
+                src={employeePhotoPreview}
+                alt="Employee"
+                className="size-20 rounded-lg border border-gray-300 object-cover dark:border-gray-600"
+              />
+            ) : (
+              <div className="dark:border-gray-600 flex size-20 items-center justify-center rounded-lg border border-dashed border-gray-300 text-[10px] text-gray-400">
+                No Photo
+              </div>
+            )}
+
+            <label className="border-primary bg-primary/5 text-primary flex cursor-pointer items-center gap-1 rounded-lg border border-dashed px-3 py-2 text-xs">
+              <PaperClipIcon className="size-4" />
+              {employeePhotoValue ? "Change Photo" : "Upload Photo"}
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0] || null;
+                  onChange(file);
+                  setKycErrors((prev) => ({ ...prev, employeePhoto: "" }));
+                }}
+              />
+            </label>
+          </div>
+        )}
+      />
+
+      {employeePhotoValue instanceof File && (
+        <p className="mt-1 truncate text-xs text-green-600">
+          {employeePhotoValue.name}
+        </p>
+      )}
+
+      {kycErrors.employeePhoto && (
+        <p className="mt-1 text-xs text-red-600">{kycErrors.employeePhoto}</p>
+      )}
+    </div>
+  );
 
   const renderKycField = (
     numberField:
@@ -558,6 +637,7 @@ export default function EmployeeRegisterWizard() {
       personalMobileNo: values.personalMobileNo,
       personalEmail: values.personalEmail,
 
+      employeePhoto: values.employeePhoto,
       aadharNumber: values.aadharNumber,
       aadharCardUpload: values.aadharCardUpload,
       drivingLicenceNumber: values.drivingLicenceNumber,
@@ -821,6 +901,10 @@ export default function EmployeeRegisterWizard() {
               <h3 className="dark:text-dark-50 border-primary text-primary border-b-4 w-37 text-lg font-bold tracking-wide lg:text-lg">
                 Identity & KYC
               </h3>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {renderEmployeePhotoField()}
+              </div>
 
               <div className="grid gap-4 sm:grid-cols-2">
                 {renderKycField(

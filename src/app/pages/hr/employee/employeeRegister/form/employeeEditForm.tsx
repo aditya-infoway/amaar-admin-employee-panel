@@ -10,7 +10,7 @@ import { Stepper } from "@/components/shared/Stepper";
 import { DatePicker } from "@/components/shared/form/Datepicker";
 import { Combobox } from "@/components/shared/form/StyledCombobox";
 import { Button, Card, Input, Switch } from "@/components/ui";
-import { URL, Get, Put, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
+import { URL, Get, Put, toasterrormsg, toastsuccessmsg ,  URL as ApiUrl,} from "@/ApiHelper";
 
 import { genderOptions } from "../../../../master/shared/constants";
 import { buildFormData } from "../../../../master/shared/toFormData";
@@ -26,6 +26,9 @@ import {
 
 import { emptyEmployee, EmployeeEntry } from "../data";
 
+// ----------------------------------------------------------------------
+// NOTE: `employeePhoto?: File | string | null` must also be added to the
+// shared `EmployeeEntry` interface and `emptyEmployee()` in "../data".
 // ----------------------------------------------------------------------
 
 const STEP_LABELS = [
@@ -115,7 +118,7 @@ const getFileUrl = (path?: string) => {
 
   return /^https?:\/\//i.test(path)
     ? path
-    : `${URL.localurl}${path.replace(/^\/+/, "")}`;
+    : `${ApiUrl.localurl}${path.replace(/^\/+/, "")}`;
 };
 export default function EmployeeEditForm() {
   const navigate = useNavigate();
@@ -149,12 +152,40 @@ export default function EmployeeEditForm() {
   // --------------------------------------------------------------------
 
   const sameAsPermanentAddress = watch("sameAsPermanentAddress");
+  const employeePhotoValue = watch("employeePhoto");
 
   const [currentCountryCode, setCurrentCountryCode] = useState("");
   const [currentStateCode, setCurrentStateCode] = useState("");
 
   const [permanentCountryCode, setPermanentCountryCode] = useState("");
   const [permanentStateCode, setPermanentStateCode] = useState("");
+
+  // --------------------------------------------------------------------
+  // Employee photo preview (handles both a freshly selected File and an
+  // existing string URL coming back from the API)
+  // --------------------------------------------------------------------
+
+  const [employeePhotoPreview, setEmployeePhotoPreview] = useState<
+    string | null
+  >(null);
+useEffect(() => {
+  if (isFile(employeePhotoValue)) {
+    const objectUrl = globalThis.URL.createObjectURL(employeePhotoValue);
+
+    setEmployeePhotoPreview(objectUrl);
+
+    return () => {
+      globalThis.URL.revokeObjectURL(objectUrl);
+    };
+  }
+
+  if (typeof employeePhotoValue === "string" && employeePhotoValue) {
+    setEmployeePhotoPreview(getFileUrl(employeePhotoValue));
+    return;
+  }
+
+  setEmployeePhotoPreview(null);
+}, [employeePhotoValue]);
 
   // --------------------------------------------------------------------
   // Country options
@@ -350,6 +381,10 @@ const isFile = (value: unknown): value is File => {
 
     const nextErrors: Record<string, string> = {};
 
+    if (!values.employeePhoto) {
+      nextErrors.employeePhoto = "Employee photo is required";
+    }
+
     KYC_FIELDS.forEach(({ numberField, uploadField, label }) => {
       const number = (values[numberField] || "").toString().trim();
 
@@ -375,6 +410,88 @@ const isFile = (value: unknown): value is File => {
 
     return Object.keys(nextErrors).length === 0;
   };
+
+  // --------------------------------------------------------------------
+  // Employee photo field renderer
+  // Same visual language as the KYC upload fields (existing image preview
+  // link + change button), but with no paired number field.
+  // --------------------------------------------------------------------
+
+  const renderEmployeePhotoField = () => (
+    <div>
+      <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-200">
+        Employee Photo
+      </label>
+
+      <Controller
+        control={control}
+        name="employeePhoto"
+        render={({ field: { value, onChange } }) => (
+          <>
+            <label className="border-primary bg-primary/5 text-primary inline-flex cursor-pointer items-center gap-1 rounded-lg border border-dashed px-3 py-2 text-xs">
+              <PaperClipIcon className="size-4" />
+
+              {isFile(value) || (typeof value === "string" && value)
+                ? "Change Photo"
+                : "Upload Photo"}
+
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(event) => {
+                  const selectedFile = event.target.files?.[0] || null;
+
+                  onChange(selectedFile);
+
+                  setKycErrors((prev) => ({ ...prev, employeePhoto: "" }));
+                }}
+              />
+            </label>
+
+            {isFile(value) && (
+              <p className="mt-1 truncate text-xs text-green-600">
+                {value.name}
+              </p>
+            )}
+
+            {/* Existing/preview photo */}
+
+            {employeePhotoPreview && (
+              <div className="mt-2">
+                {typeof value === "string" && value && (
+                  <p className="mb-2 text-xs text-green-600">
+                    Existing photo uploaded
+                  </p>
+                )}
+
+                <a
+                  href={employeePhotoPreview}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src={employeePhotoPreview}
+                    alt="Employee"
+                    className="h-32 w-32 cursor-pointer rounded-lg border border-gray-300 object-cover transition hover:opacity-80 dark:border-gray-600"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </a>
+              </div>
+            )}
+
+            {kycErrors.employeePhoto && (
+              <p className="mt-1 text-xs text-red-600">
+                {kycErrors.employeePhoto}
+              </p>
+            )}
+          </>
+        )}
+      />
+    </div>
+  );
 
   // --------------------------------------------------------------------
   // KYC field renderer
@@ -543,6 +660,8 @@ const isFile = (value: unknown): value is File => {
         // ----------------------------------------------------------
         // KYC
         // ----------------------------------------------------------
+
+        employeePhoto: values.employeePhoto,
 
         aadharNumber: values.aadharNumber,
         aadharCardUpload: values.aadharCardUpload,
@@ -898,6 +1017,10 @@ const isFile = (value: unknown): value is File => {
                   <h3 className="dark:text-dark-50 border-primary text-primary w-37 border-b-4 text-lg font-bold tracking-wide lg:text-lg">
                     Identity & KYC
                   </h3>
+
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {renderEmployeePhotoField()}
+                  </div>
 
                   <div className="grid gap-4 sm:grid-cols-2">
                     {renderKycField(

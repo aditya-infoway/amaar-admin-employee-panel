@@ -72,12 +72,14 @@ export function MasterToolbar<T>({
               <ArrowDownTrayIcon className="size-4" />
               <span>PDF</span>
             </Button>
-            {onCreate && createLabel && (
-              <Button variant="outlined" className="gap-2" onClick={onCreate}>
-                <PlusIcon className="size-4" />
-                <span>{createLabel}</span>
-              </Button>
-            )}
+            <Button
+            color="primary"
+            className="h-9 gap-2 rounded-md px-4 text-sm"
+            onClick={onCreate}
+          >
+            <PlusIcon className="size-4" />
+            <span>{createLabel}</span>
+          </Button>
           </div>
         </div>
 
