@@ -3,7 +3,7 @@ import { Post, toastsuccessmsg, toasterrormsg } from "@/ApiHelper";
 import { isTokenValid, setSession } from "@/utils/jwt";
 import { AuthProvider as AuthContext, AuthContextType } from "./context";
 import { User } from "@/@types/user";
-
+import { getCurrentLocation } from "@/utils/geolocation";
 interface AuthAction {
   type:
     | "INITIALIZE"
@@ -297,17 +297,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SESSION_ESTABLISHED", payload: { user } });
   };
 
-  const logout = async () => {
-    try {
-      await Post("employee/checkout", {}, false);
-    } catch (err) {
-      // checkout fail ho jaye to bhi logout process rukna nahi chahiye
-      console.error("Checkout failed:", err);
-    }
-    setSession(null);
-    clearAuthStorage();
-    dispatch({ type: "LOGOUT" });
-  };
+ // ✅ naya wala
+// naya wala — location fetch alag try/catch mein, timeout ke saath
+const logout = async () => {
+  let location: { latitude?: number; longitude?: number } | null = null;
+
+  try {
+    // location fetch ko max 4 sec do — agar permission dialog atka ya deny hua,
+    // checkout call phir bhi hoga (null lat/lng ke saath)
+    location = await Promise.race([
+      getCurrentLocation(),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+    ]);
+  } catch (locErr) {
+    console.error("Location fetch failed, proceeding without it:", locErr);
+  }
+
+  try {
+    const res = await Post(
+      "employee/checkout",
+      { latitude: location?.latitude, longitude: location?.longitude },
+      false
+    );
+
+    window.dispatchEvent(
+      new CustomEvent("attendance-checkout", {
+        detail: { countTime: res.data?.data?.countTime ?? 0 },
+      })
+    );
+  } catch (err) {
+    console.error("Checkout API failed:", err);
+  }
+
+  setSession(null);
+  clearAuthStorage();
+  dispatch({ type: "LOGOUT" });
+};
 
   if (!children) return null;
 

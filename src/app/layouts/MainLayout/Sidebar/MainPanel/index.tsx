@@ -9,6 +9,7 @@ import { Menu } from "./Menu";
 import { Item } from "./Menu/item";
 import { Profile } from "../../Profile";
 import { useThemeContext } from "@/app/contexts/theme/context";
+import { useSidebarContext } from "@/app/contexts/sidebar/context";   // ✅ add kiya
 import { settings } from "@/app/navigation/segments/settings";
 import { NavigationTree } from "@/@types/navigation";
 import { SegmentPath } from "..";
@@ -28,7 +29,16 @@ export function MainPanel({
   activeSegmentPath,
 }: MainPanelProps) {
   const { cardSkin } = useThemeContext();
+  const { isExpanded, open } = useSidebarContext();   // ✅ add kiya
   const menuNav = nav.filter((item) => item.id !== settings.id);
+
+  const handleSettingsClick = () => {
+    setActiveSegmentPath?.(settings.path);
+    if (!isExpanded) {
+      open();
+    }
+  };
+
   return (
     <div className="main-panel">
       <div
@@ -60,6 +70,7 @@ export function MainPanel({
             id={settings.id}
             component={Link}
             to="/settings/appearance"
+            onClick={handleSettingsClick}   // ✅ ye add kiya
             title="Settings"
             isActive={activeSegmentPath === settings.path}
             icon={settings.icon}
