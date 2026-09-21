@@ -27,7 +27,7 @@ interface AccountGroupOption {
   label: string;
 }
 
-interface EmployeeFormValues extends Employee {
+interface EmployeeFormValues extends Omit<Employee, "accountId"> {
   confirmPassword: string;
   accountId?: string;
 }
@@ -65,7 +65,9 @@ export function EmployeeDrawer({
     clearErrors,
     formState: { errors },
   } = useForm<EmployeeFormValues>({
-    values: employee ? { ...employee, confirmPassword: "" } : undefined,
+    values: employee
+      ? { ...employee, accountId: employee.accountId == null ? "" : String(employee.accountId), confirmPassword: "" }
+      : undefined,
   });
 
   const selectedDepartment = watch("department");
@@ -220,7 +222,7 @@ export function EmployeeDrawer({
                   <Listbox
                     data={departmentOptions}
                     value={departmentOptions.find((item) => item.id === value) || null}
-                    onChange={(item) => {
+                    onChange={(item: { id: string; label: string }) => {
                       onChange(item.id);
                       setValue("roleId", "");
                     }}
@@ -241,7 +243,7 @@ export function EmployeeDrawer({
                   <Listbox
                     data={branchOptions}
                     value={branchOptions.find((item) => item.id === value) || branchOptions[0]}
-                    onChange={(item) => onChange(item.id)}
+                    onChange={(item: { id: string; label: string }) => onChange(item.id)}
                     label="Branch"
                     placeholder="Select branch"
                     displayField="label"
@@ -259,7 +261,7 @@ export function EmployeeDrawer({
                   <Listbox
                     data={roleOptions}
                     value={roleOptions.find((item) => item.id === value) || null}
-                    onChange={(item) => {
+                    onChange={(item: { id: string; label: string }) => {
                       onChange(item.id);
                       // Role badalne par account selection reset karo,
                       // taaki purana selection carry na ho
@@ -286,7 +288,7 @@ export function EmployeeDrawer({
                     <Combobox
                       data={accountGroupOptions}
                       value={accountGroupOptions.find((item) => item.id === value) || null}
-                      onChange={(item) => onChange(item.id)}
+                      onChange={(item: AccountGroupOption) => onChange(item.id)}
                       label="Select Party"
                       placeholder={loadingAccountGroups ? "Loading..." : "Select account group"}
                       displayField="label"

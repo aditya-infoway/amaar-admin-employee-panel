@@ -163,8 +163,8 @@ export default function VehicleEntryListPage() {
     enableRowSelection: true,
     getRowId: (row) => row.id,
  meta: {
-  openEditDrawer: (row: Row<VehicleEntry>) =>
-    navigate(`/vehiclemaster/edit/${row.original.id}`),
+  openEditDrawer: (row: VehicleEntry) =>
+    navigate(`/vehiclemaster/edit/${row.id}`),
 
   openExitDrawer: (row: Row<VehicleEntry>) =>
     setExitVehicle(row.original),
