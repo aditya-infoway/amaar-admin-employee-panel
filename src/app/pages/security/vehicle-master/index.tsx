@@ -162,14 +162,19 @@ export default function VehicleEntryListPage() {
     state: { globalFilter, sorting, rowSelection },
     enableRowSelection: true,
     getRowId: (row) => row.id,
-    meta: {
-      openEditDrawer: (row: Row<VehicleEntry>) =>
-        navigate(`/vehiclemaster/edit/${row.original.id}`),
-      openExitDrawer: (row: Row<VehicleEntry>) =>
-        setExitVehicle(row.original),
-      deleteRow: (row: Row<VehicleEntry>) => handleDeleteOne(row.original),
-      deleteRows: (rows: Row<VehicleEntry>[]) => handleDeleteMany(rows),
-    },
+ meta: {
+  openEditDrawer: (row: Row<VehicleEntry>) =>
+    navigate(`/vehiclemaster/edit/${row.original.id}`),
+
+  openExitDrawer: (row: Row<VehicleEntry>) =>
+    setExitVehicle(row.original),
+
+  deleteRow: (row: Row<VehicleEntry>) =>
+    handleDeleteOne(row.original),
+
+  deleteRows: (rows: Row<VehicleEntry>[]) =>
+    handleDeleteMany(rows),
+},
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
     onGlobalFilterChange: setGlobalFilter,

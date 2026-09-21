@@ -136,16 +136,19 @@ export default function General() {
 
   // ===== Country / State / City option lists =====
   const countryOptions = useMemo(
-    () => Country.getAllCountries().map((c) => ({ id: c.isoCode, label: c.name })),
+    () =>
+      Country.getAllCountries().map((c) => ({ id: c.isoCode, label: c.name })),
     [],
   );
 
   const currentCountryCode =
-    Country.getAllCountries().find((c) => c.name === selectedCountry)?.isoCode || "";
+    Country.getAllCountries().find((c) => c.name === selectedCountry)
+      ?.isoCode || "";
 
   const currentStateCode =
-    State.getStatesOfCountry(currentCountryCode).find((s) => s.name === selectedState)
-      ?.isoCode || "";
+    State.getStatesOfCountry(currentCountryCode).find(
+      (s) => s.name === selectedState,
+    )?.isoCode || "";
 
   const currentStateOptions = useMemo(() => {
     if (!currentCountryCode) return [];
@@ -159,10 +162,12 @@ export default function General() {
   const currentCityOptions = useMemo(() => {
     if (!currentCountryCode || !currentStateCode) return [];
 
-    return City.getCitiesOfState(currentCountryCode, currentStateCode).map((c) => ({
-      id: c.name,
-      label: c.name,
-    }));
+    return City.getCitiesOfState(currentCountryCode, currentStateCode).map(
+      (c) => ({
+        id: c.name,
+        label: c.name,
+      }),
+    );
   }, [currentCountryCode, currentStateCode]);
 
   // ---- Fetch existing employee details and display them as read-only ----
@@ -179,7 +184,11 @@ export default function General() {
           return;
         }
 
-        const response = await Get("hr/employee/profile", { employeeId }, false);
+        const response = await Get(
+          "hr/employee/profile",
+          { employeeId },
+          false,
+        );
 
         if (response.data?.success) {
           const d = response.data.data;
@@ -226,7 +235,9 @@ export default function General() {
             workingShift: d.workingShift || "",
           });
         } else {
-          toasterrormsg(response.data?.message || "Failed to fetch employee details.");
+          toasterrormsg(
+            response.data?.message || "Failed to fetch employee details.",
+          );
         }
       } catch (error) {
         toasterrormsg("Something went wrong while fetching employee details.");
@@ -238,13 +249,13 @@ export default function General() {
     fetchEmployeeDetails();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-const getFileUrl = (path?: string) => {
-  if (!path) return "";
+  const getFileUrl = (path?: string) => {
+    if (!path) return "";
 
-  return /^https?:\/\//i.test(path)
-    ? path
-    : `${ApiUrl.localurl}${path.replace(/^\/+/, "")}`;
-};
+    return /^https?:\/\//i.test(path)
+      ? path
+      : `${ApiUrl.localurl}${path.replace(/^\/+/, "")}`;
+  };
   const renderKycField = (
     numberField:
       | "aadharNumber"
@@ -275,7 +286,9 @@ const getFileUrl = (path?: string) => {
 
   return (
     <div className="w-full max-w-3xl 2xl:max-w-5xl">
-      <h5 className="dark:text-dark-50 text-lg font-medium text-gray-800">General</h5>
+      <h5 className="dark:text-dark-50 text-lg font-medium text-gray-800">
+        General
+      </h5>
       <p className="dark:text-dark-200 mt-0.5 text-sm text-balance text-gray-500">
         View your employee profile.
       </p>
@@ -287,19 +300,18 @@ const getFileUrl = (path?: string) => {
           <span className="dark:text-dark-100 text-base font-medium text-gray-800">
             Employee Photo
           </span>
-  <Avatar
-    size={20}
-    src={
-      typeof employeePhotoValue === "string" && employeePhotoValue
-        ? getFileUrl(employeePhotoValue)
-        : "/images/logos/company-placeholder.svg"
-    }
-    classNames={{
-      root:
-        "ring-primary-600 dark:ring-primary-500 dark:ring-offset-dark-700 rounded-xl ring-offset-[3px] ring-offset-white",
-      display: "rounded-xl",
-    }}
-  />
+          <Avatar
+            size={20}
+            src={
+              typeof employeePhotoValue === "string" && employeePhotoValue
+                ? getFileUrl(employeePhotoValue)
+                : "/images/logos/company-placeholder.svg"
+            }
+            classNames={{
+              root: "ring-primary-600 dark:ring-primary-500 dark:ring-offset-dark-700 rounded-xl ring-offset-[3px] ring-offset-white",
+              display: "rounded-xl",
+            }}
+          />
         </div>
 
         <div className="dark:bg-dark-500 my-7 h-px bg-gray-200" />
@@ -316,7 +328,7 @@ const getFileUrl = (path?: string) => {
               label="Employee ID"
               readOnly
               disabled
-              className="dark:bg-dark-700 bg-gray-100 rounded-xl"
+              className="dark:bg-dark-700 rounded-xl bg-gray-100"
             />
 
             <Input
@@ -354,7 +366,9 @@ const getFileUrl = (path?: string) => {
               render={({ field: { value } }) => (
                 <Combobox
                   data={genderOptions}
-                  value={genderOptions.find((item) => item.id === value) || null}
+                  value={
+                    genderOptions.find((item) => item.id === value) || null
+                  }
                   onChange={() => {}}
                   label="Gender"
                   displayField="label"
@@ -370,7 +384,10 @@ const getFileUrl = (path?: string) => {
               render={({ field: { value } }) => (
                 <Combobox
                   data={maritalStatusOptions}
-                  value={maritalStatusOptions.find((item) => item.id === value) || null}
+                  value={
+                    maritalStatusOptions.find((item) => item.id === value) ||
+                    null
+                  }
                   onChange={() => {}}
                   label="Marital Status"
                   displayField="label"
@@ -386,7 +403,9 @@ const getFileUrl = (path?: string) => {
               render={({ field: { value } }) => (
                 <Combobox
                   data={bloodGroupOptions}
-                  value={bloodGroupOptions.find((item) => item.id === value) || null}
+                  value={
+                    bloodGroupOptions.find((item) => item.id === value) || null
+                  }
                   onChange={() => {}}
                   label="Blood Group"
                   displayField="label"
@@ -451,7 +470,9 @@ const getFileUrl = (path?: string) => {
               render={({ field: { value } }) => (
                 <Combobox
                   data={countryOptions}
-                  value={countryOptions.find((item) => item.label === value) || null}
+                  value={
+                    countryOptions.find((item) => item.label === value) || null
+                  }
                   onChange={() => {}}
                   label="Country"
                   displayField="label"
@@ -467,7 +488,10 @@ const getFileUrl = (path?: string) => {
               render={({ field: { value } }) => (
                 <Combobox
                   data={currentStateOptions}
-                  value={currentStateOptions.find((item) => item.label === value) || null}
+                  value={
+                    currentStateOptions.find((item) => item.label === value) ||
+                    null
+                  }
                   onChange={() => {}}
                   label="State"
                   displayField="label"
@@ -483,7 +507,10 @@ const getFileUrl = (path?: string) => {
               render={({ field: { value } }) => (
                 <Combobox
                   data={currentCityOptions}
-                  value={currentCityOptions.find((item) => item.label === value) || null}
+                  value={
+                    currentCityOptions.find((item) => item.label === value) ||
+                    null
+                  }
                   onChange={() => {}}
                   label="District / City"
                   displayField="label"

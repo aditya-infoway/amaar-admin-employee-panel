@@ -29,6 +29,7 @@ const DIRECT_DASHBOARD_ROLE_IDS = [
   11, // Washing Manager — TODO: actual roleId daalo
   12, // QC Manager — TODO: actual roleId daalo
   13,
+  18,
   // Production Manager — TODO: actual roleId daalo
 ];
 

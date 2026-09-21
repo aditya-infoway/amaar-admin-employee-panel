@@ -10,6 +10,8 @@ import {washingmanagerNavigation} from "./segments/washingmanager"
 import {QCmanagerNavigation} from "./segments/QCmanager"
 import {productionmanagerNavigation} from "./segments/productionmanager"
 import { hrNavigation } from "./segments/hr"
+import { storemanagerNavigation } from "./segments/storemanager"
+import { contractormanagerNavigation } from "./segments/contractormanager"
 export function useNavigation() {
 //  const { user } = useAuthContext();
 
@@ -38,6 +40,10 @@ export function useNavigation() {
    return productionmanagerNavigation;
      case 15:
    return hrNavigation;
+     case 16:
+   return storemanagerNavigation;
+     case 18:
+   return contractormanagerNavigation;
   default:
    return [];
  }

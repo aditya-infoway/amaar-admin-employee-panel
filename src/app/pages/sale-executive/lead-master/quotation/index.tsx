@@ -130,10 +130,10 @@ const table = useReactTable({
   enableRowSelection: true,
   getRowId: (row) => row.id,
    meta: {
-    openEditDrawer: (row: Row<Quotation>) => {
-      setEditing(row.original);
-      setDrawerOpen(true);
-    },
+  openEditDrawer: (row: Quotation) => {
+  setEditing(row);
+  setDrawerOpen(true);
+},
     deleteRow: async (row: Row<Quotation>) => {
       try {
         const response = await Delete(

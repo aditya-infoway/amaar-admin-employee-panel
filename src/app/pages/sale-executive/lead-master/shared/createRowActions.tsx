@@ -78,9 +78,9 @@ export function createRowActions<T extends { id: string }>(
                 {({ focus }) => (
                   <button
                     type="button"
-                    onClick={() =>
-                      table.options.meta?.openEditDrawer?.(row)
-                    }
+                   onClick={() =>
+  table.options.meta?.openEditDrawer?.(row.original)
+}
                     className={clsx(
                       "flex h-9 w-full items-center gap-3 px-3 tracking-wide outline-hidden transition-colors",
                       focus &&

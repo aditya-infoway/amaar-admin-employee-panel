@@ -118,6 +118,7 @@ export default function EmployeePage() {
       mobileNumber: item.mobileNumber,
       alternateNumber: item.alternateNumber,
       email: item.email,
+      accountId: item.accountId ? Number(item.accountId) : null,
     };
 
     try {
@@ -207,10 +208,10 @@ export default function EmployeePage() {
     enableRowSelection: true,
     getRowId: (row) => row.id,
    meta: {
-  openEditDrawer: (row: Row<Employee>) => {
-    setEditing(row.original);
-    setDrawerOpen(true);
-  },
+ openEditDrawer: (row: Employee) => {
+  setEditing(row);
+  setDrawerOpen(true);
+},
 
   deleteRow: (row) => handleDeleteOne(row.original),
 
