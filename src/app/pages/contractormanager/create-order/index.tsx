@@ -8,7 +8,7 @@ import {
   useReactTable,
 } from "@tanstack/react-table";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Page } from "@/components/shared/Page";
 import { Input } from "@/components/ui";
@@ -24,14 +24,6 @@ import { createColumns, createExportColumns } from "./columns";
 
 import type { WorkOrder } from "../shared/types";
 
-interface ContractorManager {
-  employeeId: number;
-  employeeName: string;
-  department: string;
-  branch: string;
-  roleId: number;
-}
-
 export default function CreateOrderPage() {
   const [data, setData] = useState<WorkOrder[]>([]);
 
@@ -42,19 +34,6 @@ export default function CreateOrderPage() {
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
-
-  const [assignModalOpen, setAssignModalOpen] = useState(false);
-
-  const [assigningWorkOrder, setAssigningWorkOrder] =
-    useState<WorkOrder | null>(null);
-
-  const assignSaveRef = useRef(null);
-  const [contractorManagers, setContractorManagers] = useState<
-    ContractorManager[]
-  >([]);
-
-  const [selectedContractorManager, setSelectedContractorManager] =
-    useState<ContractorManager | null>(null);
 
   const [showFilters, setShowFilters] = useState(false);
 
@@ -68,10 +47,8 @@ export default function CreateOrderPage() {
 
       const financialYearId = localStorage.getItem("financialYearId");
 
-      const employeeId = localStorage.getItem("employeeId");
-
       const response = await Get(
-        "contractoremployee/workorder/list",
+        "contractor/workorder/list",
         financialYearId ? { financialYearId } : {},
         false,
       );
@@ -79,23 +56,21 @@ export default function CreateOrderPage() {
       if (response?.data?.success || response?.data?.status === 200) {
         const workOrders = response?.data?.data || [];
 
-        // Show only Work Orders assigned to this employee
-        const assignedWorkOrders = employeeId
-          ? workOrders.filter(
-              (item: WorkOrder) =>
-                String(item.assignedEmployeeId) === String(employeeId),
-            )
-          : [];
+        // Show every Work Order that has been assigned
+        const assignedWorkOrders = workOrders.filter(
+          (item: WorkOrder) =>
+            item.assignedEmployeeId != null &&
+            item.assignedEmployeeId !== "" &&
+            String(item.assignedEmployeeId) !== "null",
+        );
 
         console.log("Assigned Work Orders:", assignedWorkOrders);
-
         setData(assignedWorkOrders);
       } else {
         setData([]);
       }
     } catch (error) {
       console.error("Work Order list error:", error);
-
       setData([]);
     } finally {
       setLoading(false);
@@ -149,13 +124,6 @@ export default function CreateOrderPage() {
     getRowId: (row) => String(row.id),
 
     meta: {
-      assignRow: async (row: WorkOrder) => {
-        setAssigningWorkOrder(row);
-        setSelectedContractorManager(null);
-
-        setAssignModalOpen(true);
-      },
-
       deleteRow: async (row: any) => {
         try {
           const response = await Delete(
@@ -209,7 +177,7 @@ export default function CreateOrderPage() {
           );
         }
       },
-    },
+    } as any,
 
     onGlobalFilterChange: setGlobalFilter,
 
@@ -236,9 +204,6 @@ export default function CreateOrderPage() {
           table={table}
           showFilters={showFilters}
           onToggleFilters={() => setShowFilters((value) => !value)}
-          onCreate={() => {
-            // Drawer removed — hook up create flow here when ready
-          }}
           onExportExcel={() =>
             exportToExcel(filteredData, exportColumns, "work_orders")
           }
@@ -272,7 +237,7 @@ export default function CreateOrderPage() {
         <MasterTable
           table={table}
           columnCount={columns.length}
-          emptyMessage="No Work Orders found. Click Create Work Order to add one."
+          emptyMessage="No Work Orders found."
         />
       </div>
     </Page>

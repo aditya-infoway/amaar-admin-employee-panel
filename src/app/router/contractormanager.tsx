@@ -5,6 +5,7 @@ import Dashboard from "@/app/pages/contractormanager/dashboards/home/crm-analyti
 
 // Work Order
 import WorkOrder from "@/app/pages/contractormanager/create-order";
+import ItemRequestPage from "../pages/contractormanager/item-request";
 
 export const contractormanagerRoutes = [
   {
@@ -38,6 +39,20 @@ export const contractormanagerRoutes = [
       {
         path: "workorder",
         Component: WorkOrder,
+      },
+    ],
+  },
+
+   {
+    path: "itemrequest",
+    children: [
+      {
+        index: true,
+        element: <Navigate to="itemrequestpage" replace />,
+      },
+      {
+        path: "itemrequestpage",
+        Component: ItemRequestPage,
       },
     ],
   },
