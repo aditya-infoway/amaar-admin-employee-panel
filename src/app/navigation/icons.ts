@@ -78,6 +78,9 @@ export const navigationIcons: Record<string, ElementType> = {
 
   stockReport: CircleStackIcon,
   "stock_report.stockReport": ClipboardDocumentListIcon,
+  
+  itemRequestRegister: RectangleStackIcon,
+  "item_request_register.itemRequestRegister": ClipboardDocumentListIcon,
 
   // Enquiry Master
   enquiryMaster: ClipboardDocumentListIcon,
