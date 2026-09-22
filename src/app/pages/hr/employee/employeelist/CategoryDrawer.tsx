@@ -7,13 +7,14 @@ import {
 import { XMarkIcon } from "@heroicons/react/24/solid";
 import { useForm } from "react-hook-form";
 import { Controller } from "react-hook-form";
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { Button, Input } from "@/components/ui";
 import { Get } from "@/ApiHelper";
 import { departmentOptions, branchOptions } from "./options";
 import { Employee } from "./data";
+import { Combobox } from "@/components/shared/form/StyledCombobox";
 
 interface RoleOption {
   id: string;
@@ -21,8 +22,14 @@ interface RoleOption {
   department: string;
 }
 
-interface EmployeeFormValues extends Employee {
+interface AccountGroupOption {
+  id: string;
+  label: string;
+}
+
+interface EmployeeFormValues extends Omit<Employee, "accountId"> {
   confirmPassword: string;
+  accountId?: string;
 }
 
 interface EmployeeDrawerProps {
@@ -43,6 +50,10 @@ export function EmployeeDrawer({
   const [checking, setChecking] = useState(false);
   const isEditing = Boolean(employee?.id);
 
+  // Sundry Creditor account list - Contractor Manager role select hone par API se aayegi
+  const [accountGroupOptions, setAccountGroupOptions] = useState<AccountGroupOption[]>([]);
+  const [loadingAccountGroups, setLoadingAccountGroups] = useState(false);
+
   const {
     register,
     handleSubmit,
@@ -54,13 +65,57 @@ export function EmployeeDrawer({
     clearErrors,
     formState: { errors },
   } = useForm<EmployeeFormValues>({
-    values: employee ? { ...employee, confirmPassword: "" } : undefined,
+    values: employee
+      ? { ...employee, accountId: employee.accountId == null ? "" : String(employee.accountId), confirmPassword: "" }
+      : undefined,
   });
 
   const selectedDepartment = watch("department");
+  const selectedRoleId = watch("roleId");
+
   const roleOptions = roles
     .filter((item) => item.department === selectedDepartment)
     .map((item) => ({ id: item.id, label: item.label }));
+
+  // Selected role ka poora object nikal ke uska label check karna hai
+  const selectedRole = roles.find((item) => item.id === selectedRoleId);
+  const isContractorManager = selectedRole?.label === "Contractor Manager";
+
+  // Jab role "Contractor Manager" ho tabhi Sundry Creditor accounts API se fetch karo
+  useEffect(() => {
+    if (!isContractorManager) {
+      setAccountGroupOptions([]);
+      return;
+    }
+
+    let isMounted = true;
+
+    const fetchSundryCreditorAccounts = async () => {
+      setLoadingAccountGroups(true);
+      try {
+        const response = await Get("employee/sundry-creditor/list", {}, false);
+        if (isMounted && response.data?.success) {
+          const list: any[] = response.data.data || [];
+          setAccountGroupOptions(
+            list.map((item) => ({
+              id: String(item.id),
+              label: item.accountName,
+            }))
+          );
+        }
+      } catch (error) {
+        if (isMounted) setAccountGroupOptions([]);
+      } finally {
+        if (isMounted) setLoadingAccountGroups(false);
+      }
+    };
+
+    fetchSundryCreditorAccounts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isContractorManager]);
 
   const handleClose = () => {
     reset();
@@ -167,7 +222,7 @@ export function EmployeeDrawer({
                   <Listbox
                     data={departmentOptions}
                     value={departmentOptions.find((item) => item.id === value) || null}
-                    onChange={(item) => {
+                    onChange={(item: { id: string; label: string }) => {
                       onChange(item.id);
                       setValue("roleId", "");
                     }}
@@ -188,7 +243,7 @@ export function EmployeeDrawer({
                   <Listbox
                     data={branchOptions}
                     value={branchOptions.find((item) => item.id === value) || branchOptions[0]}
-                    onChange={(item) => onChange(item.id)}
+                    onChange={(item: { id: string; label: string }) => onChange(item.id)}
                     label="Branch"
                     placeholder="Select branch"
                     displayField="label"
@@ -206,7 +261,12 @@ export function EmployeeDrawer({
                   <Listbox
                     data={roleOptions}
                     value={roleOptions.find((item) => item.id === value) || null}
-                    onChange={(item) => onChange(item.id)}
+                    onChange={(item: { id: string; label: string }) => {
+                      onChange(item.id);
+                      // Role badalne par account selection reset karo,
+                      // taaki purana selection carry na ho
+                      setValue("accountId", "");
+                    }}
                     label="Role"
                     placeholder="Select role"
                     displayField="label"
@@ -216,6 +276,28 @@ export function EmployeeDrawer({
                   />
                 )}
               />
+
+              {/* Sirf Contractor Manager role select hone par hi ye field dikhegi,
+                  aur options API (sundry-creditor/list) se dynamically aate hain */}
+              {isContractorManager && (
+                <Controller
+                  control={control}
+                  name="accountId"
+                  rules={{ required: "Account group is required" }}
+                  render={({ field: { value, onChange } }) => (
+                    <Combobox
+                      data={accountGroupOptions}
+                      value={accountGroupOptions.find((item) => item.id === value) || null}
+                      onChange={(item: AccountGroupOption) => onChange(item.id)}
+                      label="Select Party"
+                      placeholder={loadingAccountGroups ? "Loading..." : "Select account group"}
+                      displayField="label"
+                      error={errors.accountId?.message}
+                      inputProps={{ disabled: loadingAccountGroups }}
+                    />
+                  )}
+                />
+              )}
 
               <Input
                 {...register("employeeName", { required: "Employee name is required" })}

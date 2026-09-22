@@ -137,7 +137,7 @@ export default function VisitorEntryListPage() {
     getRowId: (row) => row.id,
     meta: {
       openEditDrawer: (row) =>
-        navigate(`/visitoremaster/edit/${row.original.id}`),
+         navigate(`/visitoremaster/edit/${row.id}`),
       openExitDrawer: (row) => setExitVisitor(row.original),
       deleteRow: (row) => handleDeleteOne(row.original),
       deleteRows: (rows) => handleDeleteMany(rows),

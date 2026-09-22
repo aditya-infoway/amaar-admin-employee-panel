@@ -1,7 +1,6 @@
 import { TbPalette, TbUsers } from "react-icons/tb";
 import {
   ArrowLeftStartOnRectangleIcon,
-  ArrowRightStartOnRectangleIcon,
   CalendarDaysIcon,
   ClockIcon,
   CubeIcon,
@@ -25,8 +24,9 @@ import {
   ShoppingCartIcon,
   CubeTransparentIcon,
   UsersIcon,
-  IdentificationIcon,
-  UserGroupIcon
+  UserGroupIcon,
+  CircleStackIcon,
+  HashtagIcon,
 } from "@heroicons/react/24/outline";
 import { ElementType } from "react";
 
@@ -42,16 +42,6 @@ export const navigationIcons: Record<string, ElementType> = {
 
   "dashboards.home": HomeIcon,
 
-  // Vehicle Master
-  vehicleMaster: ShoppingCartIcon,
-  "vehicleMaster.list": ShoppingCartIcon,
-  "vehicleMaster.exit": ArrowRightStartOnRectangleIcon,
-
-  // Visitor Master
-  visitoreMaster: IdentificationIcon,
-  "visitoreMaster.list": IdentificationIcon,
-  "visitoreMaster.exit": ArrowRightStartOnRectangleIcon,
-
   "registration.new": DocumentPlusIcon,
   "registration.expired": ClockIcon,
 
@@ -66,6 +56,7 @@ export const navigationIcons: Record<string, ElementType> = {
   "master.variant": CubeIcon,
   "master.variantStructure": RectangleStackIcon,
   "master.bom": CubeTransparentIcon,
+  "master.brand": BuildingLibraryIcon,
 
   itemMaster: CubeIcon,
   "itemMaster.list": CubeIcon,
@@ -84,6 +75,12 @@ export const navigationIcons: Record<string, ElementType> = {
   // Purchase Master
   purchaseMaster: ShoppingCartIcon,
   "purchase_master.purchaseRegister": ClipboardDocumentListIcon,
+
+  stockReport: CircleStackIcon,
+  "stock_report.stockReport": ClipboardDocumentListIcon,
+  
+  itemRequestRegister: RectangleStackIcon,
+  "item_request_register.itemRequestRegister": ClipboardDocumentListIcon,
 
   // Enquiry Master
   enquiryMaster: ClipboardDocumentListIcon,
@@ -105,8 +102,12 @@ export const navigationIcons: Record<string, ElementType> = {
   "accounting_master.bankReceipt": BuildingLibraryIcon,
   "accounting_master.contra": ArrowsRightLeftIcon,
   "accounting_master.journalEntry": ClipboardDocumentListIcon,
+  "accounting_master.cashBook": ClipboardDocumentListIcon,
+  "accounting_master.bankBook": ClipboardDocumentListIcon,
+  "accounting_master.ledgerReport": ClipboardDocumentListIcon,
 
   settings: SettingIcon,
   "settings.general": HiUserIcon,
   "settings.appearance": TbPalette,
+  "settings.prefix": HashtagIcon,
 };

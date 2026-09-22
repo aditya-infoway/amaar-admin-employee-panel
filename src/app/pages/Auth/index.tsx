@@ -29,6 +29,7 @@ const DIRECT_DASHBOARD_ROLE_IDS = [
   11, // Washing Manager — TODO: actual roleId daalo
   12, // QC Manager — TODO: actual roleId daalo
   13,
+  18,
   // Production Manager — TODO: actual roleId daalo
 ];
 
@@ -66,11 +67,19 @@ export default function SignIn() {
         longitude: location?.longitude, });
 
       // ✅ CHANGE — ab roleId check hota hai (Number cast safe comparison ke liye)
-      if (result && DIRECT_DASHBOARD_ROLE_IDS.includes(Number(result.roleId))) {
-        // ✅ NEW — select-company.tsx jaisi hi API call — hardcoded ID ki jagah
-        // real companyId/financialYearId server se lete hain
-        try {
-          const response = await Get("employee/financial-years", {}, false);
+     if (result && DIRECT_DASHBOARD_ROLE_IDS.includes(Number(result.roleId))) {
+  // ✅ FIX — login() sirf "pendingToken" set karta hai, "authToken" nahi.
+  // financial-years API ko x-token header chahiye jo ApiHelper "authToken" se padhta hai.
+  // completeAuth() baad me "authToken" set karta, lekin ye call usse PEHLE ho rahi thi — isliye 401 aata tha.
+  const pendingToken = localStorage.getItem("pendingToken");
+  if (pendingToken) {
+    localStorage.setItem("authToken", pendingToken);
+  }
+
+  // ✅ NEW — select-company.tsx jaisi hi API call — hardcoded ID ki jagah
+  // real companyId/financialYearId server se lete hain
+  try {
+    const response = await Get("employee/financial-years", {}, false);
           const rows: FinancialYearRow[] = response.data?.success
             ? response.data.data || []
             : [];

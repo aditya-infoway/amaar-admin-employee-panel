@@ -4,19 +4,25 @@ import { Dispatch, SetStateAction } from "react";
 import { ItemViewType } from "@/components/shared/table/ItemViewTypeSelect";
 declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  interface TableMeta<TData extends RowData> {
-    deleteRow?: (row: Row<TData>) => void;
-    deleteRows?: (rows: Row<TData>[]) => void;
-    // openEditDrawer?: (row: TData) => void;
-    openEditDrawer?: (row: Row<TData>) => void;
-    openExitDrawer?: (row: Row<TData>) => void;
-    printRow?: (row: Row<TData>) => void;
-    viewRow?: (row: TData) => void;
-    updateData?: (rowIndex: number, columnId: string, value: unknown) => void;
-    setTableSettings?: Dispatch<SetStateAction<TableSettings>>;
-    setToolbarFilters?: Dispatch<SetStateAction<string[] | undefined>>;
-    setViewType?: Dispatch<SetStateAction<ItemViewType>>;
-  }
+ interface TableMeta<TData extends RowData> {
+  deleteRow?: (row: Row<TData>) => void;
+  deleteRows?: (rows: Row<TData>[]) => void;
+
+  openEditDrawer?: (row: TData) => void;
+
+  openExitDrawer?: (row: Row<TData>) => void;
+  printRow?: (row: Row<TData>) => void;
+  viewRow?: (row: TData) => void;
+  updateData?: (
+    rowIndex: number,
+    columnId: string,
+    value: unknown,
+  ) => void;
+
+  setTableSettings?: Dispatch<SetStateAction<TableSettings>>;
+  setToolbarFilters?: Dispatch<SetStateAction<string[] | undefined>>;
+  setViewType?: Dispatch<SetStateAction<ItemViewType>>;
+}
 
   interface TableState {
     tableSettings?: TableSettings;

@@ -11,6 +11,8 @@ import { washingmanagerRoutes } from "./washingmanager";
 import { QCmanagerRoutes } from "./QCmanager";
 import { productionmanagerRoutes } from "./productionmanager";
 import { hrRoutes } from "./hr";
+import { storemanagerRoutes } from "./storemanager";
+import {contractormanagerRoutes} from "./contractormanager"
 export default function RoleRoutes() {
   const roleIdRaw = window.localStorage.getItem("roleId");
   const roleId = Number(roleIdRaw);
@@ -38,7 +40,11 @@ export default function RoleRoutes() {
                         ? productionmanagerRoutes
                         : roleId === 15
                           ? hrRoutes
-                          : [];
+                          : roleId === 16
+                            ? storemanagerRoutes
+                            : roleId === 18
+                            ? contractormanagerRoutes
+                            : [];
 
   return useRoutes(roleRoutes);
 }

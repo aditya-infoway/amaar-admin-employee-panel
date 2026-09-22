@@ -140,8 +140,8 @@ useEffect(() => {
     enableRowSelection: true,
     getRowId: (row) => row.id,
     meta: {
-      openEditDrawer: (row: Row<Enquiry>) => {
-        setEditing(row.original);
+      openEditDrawer: (row: Enquiry) => {
+        setEditing(row);
         setDrawerOpen(true);
       },
       deleteRow: (row: Row<Enquiry>) => handleDeleteOne(row.original),
