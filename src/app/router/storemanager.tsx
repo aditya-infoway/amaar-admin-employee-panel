@@ -25,6 +25,8 @@ import PurchaseGrrForm from "@/app/pages/storemanager/purchase-master/purchase-g
 // Stock Report
 import StockReport from "@/app/pages/storemanager/stock-report";
 import StockReportDetailPage from "@/app/pages/storemanager/stock-report/StockReportDetailPage";
+// itemRequesRegister
+import itemRequestRegister from "@/app/pages/storemanager/item-reques-register";
 // enquiry
 // import Enquiry from "@/app/pages/sale-executive/lead-master/enquiry";
 // import Quotation from "@/app/pages/sale-executive/lead-master/quotation";
@@ -163,6 +165,21 @@ export const storemanagerRoutes = [
         path: ":itemId",
         Component: StockReportDetailPage,
       },
+    ],
+  },
+
+  // Item Reques Register
+  {
+    path: "item-request-register",
+    children: [
+      {
+        index: true,
+        Component: itemRequestRegister,
+      },
+      // {
+      //   path: ":itemId",
+      //   Component: StockReportDetailPage,
+      // },
     ],
   },
 
