@@ -52,11 +52,19 @@ export default function VehicleEntryListPage() {
   const fetchList = async () => {
     setLoading(true);
     try {
-      const response = await Get("employee/security/vehicleentry/list", {}, false);
+      const response = await Get(
+        "employee/security/vehicleentry/list",
+        {},
+        false,
+      );
       if (response.data?.success) {
-        setData((response.data.data || []).map(mapApiVehicleEntryToVehicleEntry));
+        setData(
+          (response.data.data || []).map(mapApiVehicleEntryToVehicleEntry),
+        );
       } else {
-        toasterrormsg(response.data?.message || "Failed to fetch vehicle entries.");
+        toasterrormsg(
+          response.data?.message || "Failed to fetch vehicle entries.",
+        );
       }
     } catch (error) {
       toasterrormsg("Something went wrong while fetching vehicle entries.");
@@ -103,13 +111,17 @@ export default function VehicleEntryListPage() {
       const response = await Delete(
         "employee/security/vehicleentry/delete",
         { vehicleEntryId: Number(row.id) },
-        false
+        false,
       );
       if (response.data?.success) {
-        toastsuccessmsg(response.data?.message || "Vehicle entry deleted successfully.");
+        toastsuccessmsg(
+          response.data?.message || "Vehicle entry deleted successfully.",
+        );
         setData((prev) => prev.filter((item) => item.id !== row.id));
       } else {
-        toasterrormsg(response.data?.message || "Failed to delete vehicle entry.");
+        toasterrormsg(
+          response.data?.message || "Failed to delete vehicle entry.",
+        );
       }
     } catch (error) {
       toasterrormsg("Something went wrong while deleting the vehicle entry.");
@@ -120,8 +132,12 @@ export default function VehicleEntryListPage() {
     try {
       await Promise.all(
         rows.map((r) =>
-          Delete("employee/security/vehicleentry/delete", { vehicleEntryId: Number(r.original.id) }, false)
-        )
+          Delete(
+            "employee/security/vehicleentry/delete",
+            { vehicleEntryId: Number(r.original.id) },
+            false,
+          ),
+        ),
       );
       const ids = new Set(rows.map((r) => r.original.id));
       setData((prev) => prev.filter((item) => !ids.has(item.id)));
@@ -138,14 +154,24 @@ export default function VehicleEntryListPage() {
       exitTime: fields.exitTime,
       exitVehicleCondition: fields.exitVehicleCondition,
       conditionChangedAtExit: fields.conditionChangedAtExit,
-      exitPhotoFront: fields.conditionChangedAtExit ? fields.exitPhotoFront : undefined,
-      exitPhotoBack: fields.conditionChangedAtExit ? fields.exitPhotoBack : undefined,
+      exitPhotoFront: fields.conditionChangedAtExit
+        ? fields.exitPhotoFront
+        : undefined,
+      exitPhotoBack: fields.conditionChangedAtExit
+        ? fields.exitPhotoBack
+        : undefined,
     });
 
     try {
-      const response = await Put("employee/security/vehicleentry/exit", formData, true);
+      const response = await Put(
+        "employee/security/vehicleentry/exit",
+        formData,
+        true,
+      );
       if (response.data?.success) {
-        toastsuccessmsg(response.data?.message || "Vehicle exit marked successfully.");
+        toastsuccessmsg(
+          response.data?.message || "Vehicle exit marked successfully.",
+        );
         setExitVehicle(null);
         fetchList();
       } else {
@@ -162,19 +188,16 @@ export default function VehicleEntryListPage() {
     state: { globalFilter, sorting, rowSelection },
     enableRowSelection: true,
     getRowId: (row) => row.id,
- meta: {
-  openEditDrawer: (row: VehicleEntry) =>
-    navigate(`/vehiclemaster/edit/${row.id}`),
+    meta: {
+      openEditDrawer: (row: VehicleEntry) =>
+        navigate(`/vehiclemaster/edit/${row.id}`),
 
-  openExitDrawer: (row: Row<VehicleEntry>) =>
-    setExitVehicle(row.original),
+      openExitDrawer: (row: Row<VehicleEntry>) => setExitVehicle(row.original),
 
-  deleteRow: (row: Row<VehicleEntry>) =>
-    handleDeleteOne(row.original),
+      deleteRow: (row: Row<VehicleEntry>) => handleDeleteOne(row.original),
 
-  deleteRows: (rows: Row<VehicleEntry>[]) =>
-    handleDeleteMany(rows),
-},
+      deleteRows: (rows: Row<VehicleEntry>[]) => handleDeleteMany(rows),
+    },
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
     onGlobalFilterChange: setGlobalFilter,
@@ -257,7 +280,9 @@ export default function VehicleEntryListPage() {
       <VehicleExitDrawer
         vehicle={exitVehicle}
         onClose={() => setExitVehicle(null)}
-        onSaved={(fields) => exitVehicle && handleExitSaved(exitVehicle.id, fields)}
+        onSaved={(fields) =>
+          exitVehicle && handleExitSaved(exitVehicle.id, fields)
+        }
       />
     </Page>
   );

@@ -2,4 +2,10 @@ import { dashboards } from "./dashboards";
 import { logout } from "./logout";
 // ya jahan se bhi ye export ho raha hai
 import { settings } from "./settings";
-export const contractormanagerNavigation = [dashboards, settings, logout];
+import { workorder } from "./workorder";
+export const contractormanagerNavigation = [
+  dashboards,
+  settings,
+  workorder,
+  logout,
+];
