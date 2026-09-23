@@ -300,6 +300,13 @@ export default function ItemRequestPage() {
       return;
     }
 
+    const maxQty = selectedItem.bomQty ?? 0;
+
+    if (Number(qty) > maxQty) {
+      toasterrormsg(`Qty cannot exceed ${maxQty} (BOM quantity)`);
+      return;
+    }
+
     /* Prevent duplicate BOM leaf (not duplicate item — same item can appear as separate BOM leaves) */
     if (rows.some((row) => row.bomItemId === selectedItem.id)) {
       toasterrormsg("This item is already added");
@@ -513,6 +520,7 @@ export default function ItemRequestPage() {
                 label="Qty"
                 type="number"
                 min={1}
+                max={selectedItem?.bomQty ?? undefined}
                 step={1}
                 value={qty}
                 onChange={(e) => {
