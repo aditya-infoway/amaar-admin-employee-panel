@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-
+import { CheckCircleIcon, ClockIcon } from "@heroicons/react/24/outline";
 import { Page } from "@/components/shared/Page";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { fuzzyFilter } from "@/utils/react-table/fuzzyFilter";
@@ -18,7 +18,10 @@ import { exportToExcel, exportToPdf } from "./shared/export";
 import { MasterTable } from "./shared/MasterTable";
 import { MasterToolbar } from "./shared/MasterToolbar";
 import { columns, exportColumns } from "./columns";
-import { mapApiStockReportItemToStockReportItem, StockReportItem } from "./data";
+import {
+  mapApiStockReportItemToStockReportItem,
+  StockReportItem,
+} from "./data";
 
 export default function StockReportPage() {
   const navigate = useNavigate();
@@ -31,19 +34,28 @@ export default function StockReportPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterCategory, setFilterCategory] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
+  const [activeTab, setActiveTab] = useState<"pending" | "complete">("pending"); // ✅ naya
 
-  // ---- API se item request register fetch karo ----
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const response = await Get("storemanager/item-request-register/list", {}, false);
+      const response = await Get("storemanager/itemRequest/list", {}, false);
+
       if (response.data?.success) {
-        setData((response.data.data || []).map(mapApiStockReportItemToStockReportItem));
+        const mapped = (response.data.data || []).map(
+          mapApiStockReportItemToStockReportItem,
+        );
+        setData(mapped);
       } else {
-        toasterrormsg(response.data?.message || "Failed to fetch item request register.");
+        toasterrormsg(
+          response.data?.message || "Failed to fetch item request register.",
+        );
       }
     } catch (error) {
-      toasterrormsg("Something went wrong while fetching item request register.");
+      console.error("fetchAll error:", error);
+      toasterrormsg(
+        "Something went wrong while fetching item request register.",
+      );
     } finally {
       setLoading(false);
     }
@@ -54,31 +66,42 @@ export default function StockReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ NEW — Item Category filter options
-  const categoryOptions = useMemo(() => {
-    const unique = Array.from(new Set(data.map((item) => item.categoryName).filter(Boolean)));
-    return [
-      { id: "", label: "All" },
-      ...unique.map((name) => ({ id: name as string, label: name as string })),
-    ];
-  }, [data]);
+  // ✅ NEW — tab ke hisaab se pehle split karo
+  const tabFilteredData = useMemo(() => {
+    return data.filter((item) => {
+      const status = (item.status || "Pending").toLowerCase();
+      if (activeTab === "pending") return status !== "complete";
+      return status === "complete";
+    });
+  }, [data, activeTab]);
 
-  // ✅ NEW — Group filter options
-  const groupOptions = useMemo(() => {
-    const unique = Array.from(new Set(data.map((item) => item.groupName).filter(Boolean)));
+  const categoryOptions = useMemo(() => {
+    const unique = Array.from(
+      new Set(tabFilteredData.map((item) => item.categoryName).filter(Boolean)),
+    );
     return [
       { id: "", label: "All" },
       ...unique.map((name) => ({ id: name as string, label: name as string })),
     ];
-  }, [data]);
+  }, [tabFilteredData]);
+
+  const groupOptions = useMemo(() => {
+    const unique = Array.from(
+      new Set(tabFilteredData.map((item) => item.groupName).filter(Boolean)),
+    );
+    return [
+      { id: "", label: "All" },
+      ...unique.map((name) => ({ id: name as string, label: name as string })),
+    ];
+  }, [tabFilteredData]);
 
   const filteredData = useMemo(() => {
-    return data.filter((item) => {
+    return tabFilteredData.filter((item) => {
       if (filterCategory && item.categoryName !== filterCategory) return false;
       if (filterGroup && item.groupName !== filterGroup) return false;
       return true;
     });
-  }, [data, filterCategory, filterGroup]);
+  }, [tabFilteredData, filterCategory, filterGroup]);
 
   const table = useReactTable({
     data: filteredData,
@@ -87,7 +110,8 @@ export default function StockReportPage() {
     enableRowSelection: true,
     getRowId: (row) => row.id,
     meta: {
-      viewRow: (row: StockReportItem) => navigate(`/item-reques-register/${row.id}`),
+      viewRow: (row: StockReportItem) =>
+        navigate(`/item-request-register/${row.id}`),
     },
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
@@ -109,13 +133,25 @@ export default function StockReportPage() {
           table={table}
           showFilters={showFilters}
           onToggleFilters={() => setShowFilters((v) => !v)}
-          onExportExcel={() => exportToExcel(filteredData, exportColumns, "stock-report")}
-          onExportPdf={() => exportToPdf(filteredData, exportColumns, "Stock Report", "stock-report")}
+          onExportExcel={() =>
+            exportToExcel(filteredData, exportColumns, "stock-report")
+          }
+          onExportPdf={() =>
+            exportToPdf(
+              filteredData,
+              exportColumns,
+              "Stock Report",
+              "stock-report",
+            )
+          }
           filterPanel={
             <div className="grid gap-4 sm:grid-cols-2">
               <Listbox
                 data={categoryOptions}
-                value={categoryOptions.find((item) => item.id === filterCategory) || categoryOptions[0]}
+                value={
+                  categoryOptions.find((item) => item.id === filterCategory) ||
+                  categoryOptions[0]
+                }
                 onChange={(item) => setFilterCategory(item.id)}
                 label="Item Category"
                 placeholder="All categories"
@@ -123,7 +159,10 @@ export default function StockReportPage() {
               />
               <Listbox
                 data={groupOptions}
-                value={groupOptions.find((item) => item.id === filterGroup) || groupOptions[0]}
+                value={
+                  groupOptions.find((item) => item.id === filterGroup) ||
+                  groupOptions[0]
+                }
                 onChange={(item) => setFilterGroup(item.id)}
                 label="Group"
                 placeholder="All groups"
@@ -132,10 +171,55 @@ export default function StockReportPage() {
             </div>
           }
         />
+
+        {/* ✅ NEW — Pending / Complete tabs, BOM/Sub BOM jaisa */}
+        {/* ✅ Pending / Complete tabs — BOM/Sub BOM jaisa */}
+        <div className="dark:border-dark-600 mt-5 mb-5 border-b border-gray-200">
+          <div className="flex items-center gap-8 pl-4">
+            <button
+              type="button"
+              onClick={() => setActiveTab("pending")}
+              className={`relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors ${
+                activeTab === "pending"
+                  ? "text-primary"
+                  : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <ClockIcon className="size-4" />
+              Pending
+              {activeTab === "pending" && (
+                <span className="bg-primary absolute right-0 -bottom-px left-0 h-0.5 rounded-full" />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setActiveTab("complete")}
+              className={`relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors ${
+                activeTab === "complete"
+                  ? "text-primary"
+                  : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700"
+              }`}
+            >
+              <CheckCircleIcon className="size-4" />
+              Complete
+              {activeTab === "complete" && (
+                <span className="bg-primary absolute right-0 -bottom-px left-0 h-0.5 rounded-full" />
+              )}
+            </button>
+          </div>
+        </div>
+
         <MasterTable
           table={table}
           columnCount={columns.length}
-          emptyMessage={loading ? "Loading item request register.." : "No item request available."}
+          emptyMessage={
+            loading
+              ? "Loading item request register.."
+              : activeTab === "pending"
+                ? "No pending item requests."
+                : "No completed item requests."
+          }
         />
       </div>
     </Page>

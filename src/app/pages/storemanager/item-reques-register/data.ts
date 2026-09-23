@@ -8,11 +8,13 @@ export interface StockReportItem {
   groupName: string;
   taxSlab: string;
   currentStock: string;
+  itemLocation: string;
+  status: string; // ✅ naya
 }
 
 export const mapApiStockReportItemToStockReportItem = (item: any): StockReportItem => ({
-  id: String(item.id),
-  date: item.date ?? "",
+  id: String(item.itemRequestId ?? item.id ?? ""),
+  date: item.date ?? item.created ?? "",
   contractorName: item.contractorName ?? "",
   workOrderId: item.workOrderId ?? "",
   model: item.model ?? "",
@@ -20,6 +22,8 @@ export const mapApiStockReportItemToStockReportItem = (item: any): StockReportIt
   groupName: item.groupName ?? "",
   taxSlab: item.taxSlab ?? "0",
   currentStock: item.currentStock ?? "0",
+  itemLocation: item.itemLocation ?? "",
+  status: item.status ?? "Pending", // ✅ naya
 });
 
 export interface StockReportDetailRow {
