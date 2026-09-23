@@ -22,7 +22,7 @@ import {
   mapApiStockReportItemToStockReportItem,
   StockReportItem,
 } from "./data";
-
+import clsx from "clsx";
 export default function StockReportPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<StockReportItem[]>([]);
@@ -172,42 +172,43 @@ export default function StockReportPage() {
           }
         />
 
-        {/* ✅ NEW — Pending / Complete tabs, BOM/Sub BOM jaisa */}
-        {/* ✅ Pending / Complete tabs — BOM/Sub BOM jaisa */}
-        <div className="dark:border-dark-600 mt-5 mb-5 border-b border-gray-200">
-          <div className="flex items-center gap-8 pl-4">
-            <button
-              type="button"
-              onClick={() => setActiveTab("pending")}
-              className={`relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors ${
-                activeTab === "pending"
-                  ? "text-primary"
-                  : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <ClockIcon className="size-4" />
-              Pending
-              {activeTab === "pending" && (
-                <span className="bg-primary absolute right-0 -bottom-px left-0 h-0.5 rounded-full" />
-              )}
-            </button>
+               {/* Pending / Complete tabs – BOM/Sub BOM jaisa (exact match) */}
+        <div className="dark:border-dark-500 mt-4 mb-4 flex cursor-pointer items-center gap-6 border-b border-gray-200 px-(--margin-x)">
+          {/* Pending Tab */}
+          <button
+            type="button"
+            onClick={() => setActiveTab("pending")}
+            className={clsx(
+              "relative flex cursor-pointer items-center gap-2 pb-3 text-sm font-medium transition-colors",
+              activeTab === "pending"
+                ? "text-primary-600 dark:text-primary-400"
+                : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700",
+            )}
+          >
+            <ClockIcon className="size-4" />
+            <span>Pending</span>
+            {activeTab === "pending" && (
+              <span className="bg-primary-600 dark:bg-primary-400 absolute right-0 bottom-0 left-0 h-0.5 rounded-full" />
+            )}
+          </button>
 
-            <button
-              type="button"
-              onClick={() => setActiveTab("complete")}
-              className={`relative flex items-center gap-2 pb-3 text-sm font-medium transition-colors ${
-                activeTab === "complete"
-                  ? "text-primary"
-                  : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              <CheckCircleIcon className="size-4" />
-              Complete
-              {activeTab === "complete" && (
-                <span className="bg-primary absolute right-0 -bottom-px left-0 h-0.5 rounded-full" />
-              )}
-            </button>
-          </div>
+          {/* Complete Tab */}
+          <button
+            type="button"
+            onClick={() => setActiveTab("complete")}
+            className={clsx(
+              "relative flex cursor-pointer items-center gap-2 pb-3 text-sm font-medium transition-colors",
+              activeTab === "complete"
+                ? "text-primary-600 dark:text-primary-400"
+                : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700",
+            )}
+          >
+            <CheckCircleIcon className="size-4" />
+            <span>Complete</span>
+            {activeTab === "complete" && (
+              <span className="bg-primary-600 dark:bg-primary-400 absolute right-0 bottom-0 left-0 h-0.5 rounded-full" />
+            )}
+          </button>
         </div>
 
         <MasterTable
