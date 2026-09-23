@@ -5,7 +5,7 @@ export const workorder: NavigationTree = {
   type: "collapse",
   path: "/create-order",
   title: "Work order",
-  icon: "stockReport",
+  icon: "itemRequestRegister",
   childs: [
     {
       id: "stock_report.workorder",
