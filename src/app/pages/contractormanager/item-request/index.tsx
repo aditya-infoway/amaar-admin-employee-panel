@@ -39,6 +39,7 @@ interface ItemOption {
 
 interface ItemRequestRow {
   id: number;
+  bomItemId: number;
   itemId: number;
   itemCode: string;
   itemName: string;
@@ -93,8 +94,6 @@ export default function ItemRequestPage() {
 
         const financialYearId = localStorage.getItem("financialYearId");
 
-      
-
         const params: Record<string, any> = {
           _t: Date.now(),
         };
@@ -103,15 +102,11 @@ export default function ItemRequestPage() {
           params.financialYearId = Number(financialYearId);
         }
 
-
-
         const response = await Get(
           "contractor/itemrequest/workorders",
           params,
           false,
         );
-
-   
 
         if (!mounted) return;
 
@@ -119,8 +114,6 @@ export default function ItemRequestPage() {
           const data = Array.isArray(response.data.data)
             ? response.data.data
             : [];
-
-         
 
           setWorkOrders(data);
         } else {
@@ -198,8 +191,6 @@ export default function ItemRequestPage() {
         setItemName("");
         setQty("");
 
-      
-
         const response = await Get(
           "contractor/itemrequest/items-by-workorder",
           {
@@ -209,7 +200,6 @@ export default function ItemRequestPage() {
           false,
         );
 
-      
         if (!mounted) return;
 
         if (response?.data?.success || response?.data?.status === 200) {
@@ -217,7 +207,6 @@ export default function ItemRequestPage() {
             ? response.data.data
             : [];
 
-        
           setItems(data);
         } else {
           console.error("BOM Items API unsuccessful:", response?.data);
@@ -261,8 +250,6 @@ export default function ItemRequestPage() {
   /* ================================================================ */
 
   const handleWorkOrderChange = (workOrder: WorkOrderOption | null) => {
- 
-
     setSelectedWorkOrder(workOrder);
 
     /*
@@ -286,13 +273,11 @@ export default function ItemRequestPage() {
   /* ================================================================ */
 
   const handleItemChange = (item: ItemOption | null) => {
-  
-
     setSelectedItem(item);
 
     setItemCode(item?.itemCode ?? "");
     setItemName(item?.itemName ?? "");
-    setQty(item?.bomQty ?? "");
+    setQty("");
   };
 
   /* ================================================================ */
@@ -300,28 +285,36 @@ export default function ItemRequestPage() {
   /* ================================================================ */
 
   const handleAddRow = () => {
-    if (!selectedItem || !itemCode || !itemName || !qty || Number(qty) <= 0) {
-      toasterrormsg("Please select an item and enter valid quantity");
-
+    if (!selectedItem || !itemCode || !itemName) {
+      toasterrormsg("Please select an item");
       return;
     }
 
-    /* Prevent duplicate item */
-    if (rows.some((row) => row.itemId === selectedItem.id)) {
-      toasterrormsg("This item is already added");
+    if (qty === "" || Number(qty) <= 0) {
+      toasterrormsg("Please enter a quantity greater than 0");
+      return;
+    }
 
+    if (!Number.isInteger(Number(qty))) {
+      toasterrormsg("Quantity must be a whole number");
+      return;
+    }
+
+    /* Prevent duplicate BOM leaf (not duplicate item — same item can appear as separate BOM leaves) */
+    if (rows.some((row) => row.bomItemId === selectedItem.id)) {
+      toasterrormsg("This item is already added");
       return;
     }
 
     const newRow: ItemRequestRow = {
       id: Date.now(),
-      itemId: selectedItem.id,
+      bomItemId: selectedItem.id,
+      itemId: selectedItem.itemId,
       itemCode: itemCode,
       itemName: itemName,
       qty: Number(qty),
       unit: selectedItem.unit,
     };
-
 
     setRows((prev) => [...prev, newRow]);
 
@@ -376,11 +369,7 @@ export default function ItemRequestPage() {
         })),
       };
 
-    
-
       const response = await Post("contractor/itemrequest", payload, false);
-
-    
 
       if (response?.data?.success || response?.data?.status === 200) {
         toastsuccessmsg("Item Request sent to Store Manager successfully");
@@ -419,8 +408,13 @@ export default function ItemRequestPage() {
 
   const canAdd = useMemo(
     () =>
-      Boolean(selectedItem && itemCode && itemName && qty && Number(qty) > 0),
-    [selectedItem, itemCode, itemName, qty],
+      Boolean(
+        selectedItem &&
+        qty !== "" &&
+        Number(qty) > 0 &&
+        Number.isInteger(Number(qty)),
+      ),
+    [selectedItem, qty],
   );
 
   const canSubmit = Boolean(
@@ -515,7 +509,30 @@ export default function ItemRequestPage() {
             {/* ---------------- Quantity ---------------- */}
 
             <div className="col-span-6 sm:col-span-2">
-              <Input label="Qty" value={qty} readOnly placeholder="Auto" />
+              <Input
+                label="Qty"
+                type="number"
+                min={1}
+                step={1}
+                value={qty}
+                onChange={(e) => {
+                  const value = e.target.value;
+
+                  if (value === "") {
+                    setQty("");
+                    return;
+                  }
+
+                  const num = Number(value);
+
+                  if (!Number.isFinite(num) || num < 0) {
+                    return;
+                  }
+
+                  setQty(num);
+                }}
+                placeholder="Enter Qty"
+              />
             </div>
 
             {/* ---------------- Add ---------------- */}
