@@ -64,7 +64,7 @@ export default function CreateOrderPage() {
             String(item.assignedEmployeeId) !== "null",
         );
 
-        console.log("Assigned Work Orders:", assignedWorkOrders);
+       
         setData(assignedWorkOrders);
       } else {
         setData([]);
