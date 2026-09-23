@@ -27,6 +27,7 @@ import StockReport from "@/app/pages/storemanager/stock-report";
 import StockReportDetailPage from "@/app/pages/storemanager/stock-report/StockReportDetailPage";
 // itemRequesRegister
 import itemRequestRegister from "@/app/pages/storemanager/item-reques-register";
+import ItemRequestDetailPage from "@/app/pages/storemanager/item-reques-register/ItemRequestDetailPage";
 // enquiry
 // import Enquiry from "@/app/pages/sale-executive/lead-master/enquiry";
 // import Quotation from "@/app/pages/sale-executive/lead-master/quotation";
@@ -176,10 +177,10 @@ export const storemanagerRoutes = [
         index: true,
         Component: itemRequestRegister,
       },
-      // {
-      //   path: ":itemId",
-      //   Component: StockReportDetailPage,
-      // },
+      {
+        path: ":itemId",
+        Component: ItemRequestDetailPage,
+      },
     ],
   },
 
