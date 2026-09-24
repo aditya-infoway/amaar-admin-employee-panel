@@ -35,6 +35,7 @@ interface ItemOption {
   itemName: string;
   unit?: string;
   bomQty?: number;
+
 }
 
 interface ItemRequestRow {
@@ -244,6 +245,7 @@ export default function ItemRequestPage() {
       mounted = false;
     };
   }, [selectedWorkOrder?.id]);
+
 
   /* ================================================================ */
   /* WORK ORDER CHANGE                                                */
@@ -483,6 +485,14 @@ export default function ItemRequestPage() {
               label="Select Item"
               searchFields={["itemName", "itemCode"]}
               disabled={!selectedWorkOrder || itemLoading}
+              renderItem={(item: ItemOption) => (
+                <div className="flex items-center justify-between gap-3">
+                  <span className="truncate text-sm">{item.itemName}</span>
+                  <span className="text-sm font-semibold  dark:text-gray-200">
+                    Qty: {item.bomQty ?? 0}
+                  </span>
+                </div>
+              )}
             />
           </div>
 
