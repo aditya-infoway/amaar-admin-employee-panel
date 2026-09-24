@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ChevronLeftIcon } from "@heroicons/react/20/solid";
 import { CheckIcon, ClockIcon } from "@heroicons/react/24/outline";
-import { Link, useParams } from "react-router";
+import { Link, useParams,useNavigate } from "react-router";
 import { Page } from "@/components/shared/Page";
 import { Button, Input } from "@/components/ui";
 import { Get, Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
@@ -37,26 +37,35 @@ export default function ItemRequestDetailPage() {
   const [issueQty, setIssueQty] = useState<Record<number, number>>({});
   // ✅ NEW — jo rows "Issue" click ho chuki hain lekin abhi backend save nahi hui
   const [stagedIds, setStagedIds] = useState<Set<number>>(new Set());
+const navigate = useNavigate(); // ✅ NEW
+ const fetchData = async () => {
+  if (!itemId) return;
+  setLoading(true);
+  try {
+    const res = await Get(`storemanager/itemRequest/${itemId}`, {}, false);
+    if (res.data?.success) {
+      setData(res.data.data);
 
-  const fetchData = async () => {
-    if (!itemId) return;
-    setLoading(true);
-    try {
-      const res = await Get(`storemanager/itemRequest/${itemId}`, {}, false);
-      if (res.data?.success) {
-        setData(res.data.data);
-      } else {
-        toasterrormsg(res.data?.message || "Failed to load item request.");
-      }
-    } catch (err: any) {
-      toasterrormsg(
-        err?.response?.data?.message ||
-          "Something went wrong while loading item request.",
-      );
-    } finally {
-      setLoading(false);
+      // ✅ NEW — jo items already issue ho chuke hain, unki qty input me bhar do
+      const initialQty: Record<number, number> = {};
+      (res.data.data?.items || []).forEach((row: ItemRow) => {
+        if ((row.issuedQty ?? 0) > 0) {
+          initialQty[row.id] = row.issuedQty;
+        }
+      });
+      setIssueQty(initialQty);
+    } else {
+      toasterrormsg(res.data?.message || "Failed to load item request.");
     }
-  };
+  } catch (err: any) {
+    toasterrormsg(
+      err?.response?.data?.message ||
+        "Something went wrong while loading item request.",
+    );
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     fetchData();
@@ -93,56 +102,62 @@ export default function ItemRequestDetailPage() {
   };
 
   // ✅ Save button — sirf staged rows ko backend mein save karta hai
-  const handleSaveAll = async () => {
-    if (!data?.items?.length) return;
+ const handleSaveAll = async () => {
+  if (!data?.items?.length) return;
 
-    const rowsToIssue = data.items.filter((row) => stagedIds.has(row.id));
+  const rowsToIssue = data.items.filter((row) => stagedIds.has(row.id));
 
-    if (!rowsToIssue.length) {
-      toasterrormsg("Please mark at least one item as Issue before saving");
-      return;
-    }
+  if (!rowsToIssue.length) {
+    toasterrormsg("Please mark at least one item as Issue before saving");
+    return;
+  }
 
-    setSaving(true);
-    try {
-      let successCount = 0;
-      const failedItems: string[] = [];
+  setSaving(true);
+  try {
+    let successCount = 0;
+    const failedItems: string[] = [];
 
-      for (const row of rowsToIssue) {
-        const qty = issueQty[row.id] ?? 0;
-        try {
-          const res = await Post(
-            "storemanager/itemRequest/issue",
-            {
-              itemRequestDetailId: row.id,
-              qty,
-            },
-            false,
-          );
-          if (res.data?.success) {
-            successCount += 1;
-          } else {
-            failedItems.push(row.itemName);
-          }
-        } catch {
+    for (const row of rowsToIssue) {
+      const qty = issueQty[row.id] ?? 0;
+      try {
+        const res = await Post(
+          "storemanager/itemRequest/issue",
+          {
+            itemRequestDetailId: row.id,
+            qty,
+          },
+          false,
+        );
+        if (res.data?.success) {
+          successCount += 1;
+        } else {
           failedItems.push(row.itemName);
         }
+      } catch {
+        failedItems.push(row.itemName);
       }
-
-      if (successCount > 0) {
-        toastsuccessmsg(`${successCount} item(s) issued successfully`);
-      }
-      if (failedItems.length) {
-        toasterrormsg(`Failed to issue: ${failedItems.join(", ")}`);
-      }
-
-      setIssueQty({});
-      setStagedIds(new Set());
-      fetchData(); // ✅ refresh — backend se actual issuedQty aayegi
-    } finally {
-      setSaving(false);
     }
-  };
+
+    if (successCount > 0) {
+      toastsuccessmsg(`${successCount} item(s) issued successfully`);
+    }
+    if (failedItems.length) {
+      toasterrormsg(`Failed to issue: ${failedItems.join(", ")}`);
+    }
+
+    setIssueQty({});
+    setStagedIds(new Set());
+
+    // ✅ CHANGED — refetch ki jagah ab list page pe navigate
+    if (successCount > 0) {
+      navigate("/item-request-register");
+    } else {
+      fetchData(); // sab fail ho gaye to yahi rukke, data refresh kar do
+    }
+  } finally {
+    setSaving(false);
+  }
+};
 
   return (
     <Page title="Item Request Detail">
@@ -229,8 +244,8 @@ export default function ItemRequestDetailPage() {
                   </tr>
                 ) : (
                   data.items.map((row) => {
-                    const isIssued = (row.issuedQty ?? 0) > 0; // ✅ backend se confirmed
-                    const isStaged = stagedIds.has(row.id) && !isIssued; // ✅ local, save hone ka wait
+                    const isIssued = (row.issuedQty ?? 0) > 0; 
+                    const isStaged = stagedIds.has(row.id) && !isIssued; 
 
                     return (
                       <tr key={row.id}>
