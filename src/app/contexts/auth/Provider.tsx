@@ -199,12 +199,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.isAuthenticated]);
 
   // STEP 1: login validate — OTP nahi
-  const login = async (credentials: { email: string; password: string;  latitude?: number; longitude?: number; }) => {
+  const login = async (credentials: {
+    email: string;
+    password: string;
+    latitude?: number;
+    longitude?: number;
+  }) => {
     dispatch({ type: "LOGIN_REQUEST" });
     try {
       const response = await Post(
         "employee/login",
-        { email: credentials.email, password: credentials.password ,  latitude: credentials.latitude,   longitude: credentials.longitude, },
+        {
+          email: credentials.email,
+          password: credentials.password,
+          latitude: credentials.latitude,
+          longitude: credentials.longitude,
+        },
         false,
       );
       const result = response.data;
@@ -234,8 +244,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem("roleId", roleId);
       window.localStorage.setItem("roleName", roleName);
       window.localStorage.setItem("employeeName", employeeName);
- window.localStorage.setItem("latitude", String(credentials.latitude ?? ""));
-      window.localStorage.setItem("longitude", String(credentials.longitude ?? ""));
+      window.localStorage.setItem(
+        "latitude",
+        String(credentials.latitude ?? ""),
+      );
+      window.localStorage.setItem(
+        "longitude",
+        String(credentials.longitude ?? ""),
+      );
       toastsuccessmsg(result.message);
 
       dispatch({
@@ -249,7 +265,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // ✅ NEW — SignIn page ko roleName + companyId wapas do, taaki wo decide
       // kar sake ki select-company page dikhana hai ya seedha dashboard bhejna hai
-      return { companyId, companyName, roleId, roleName, employeeName, department };
+      return {
+        companyId,
+        companyName,
+        roleId,
+        roleName,
+        employeeName,
+        department,
+      };
     } catch (err: any) {
       const message =
         err?.response?.data?.message || err.message || "Login failed";
@@ -287,7 +310,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // ✅ NEW — agar financialYearId diya gaya hai (default-set flow), to save karo
     if (options?.financialYearId) {
-      window.localStorage.setItem(FINANCIAL_YEAR_ID_KEY, options.financialYearId);
+      window.localStorage.setItem(
+        FINANCIAL_YEAR_ID_KEY,
+        options.financialYearId,
+      );
     }
 
     resetExpiry();
@@ -297,42 +323,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SESSION_ESTABLISHED", payload: { user } });
   };
 
- // ✅ naya wala
-// naya wala — location fetch alag try/catch mein, timeout ke saath
-const logout = async () => {
-  let location: { latitude?: number; longitude?: number } | null = null;
+  // ✅ naya wala
+  // naya wala — location fetch alag try/catch mein, timeout ke saath
+  const logout = async () => {
+    let location: { latitude?: number; longitude?: number } | null = null;
 
-  try {
-    // location fetch ko max 4 sec do — agar permission dialog atka ya deny hua,
-    // checkout call phir bhi hoga (null lat/lng ke saath)
-    location = await Promise.race([
-      getCurrentLocation(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
-    ]);
-  } catch (locErr) {
-    console.error("Location fetch failed, proceeding without it:", locErr);
-  }
+    try {
+      // location fetch ko max 4 sec do — agar permission dialog atka ya deny hua,
+      // checkout call phir bhi hoga (null lat/lng ke saath)
+      location = await Promise.race([
+        getCurrentLocation(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]);
+    } catch (locErr) {
+      console.error("Location fetch failed, proceeding without it:", locErr);
+    }
 
-  try {
-    const res = await Post(
-      "employee/checkout",
-      { latitude: location?.latitude, longitude: location?.longitude },
-      false
-    );
+    try {
+      const res = await Post(
+        "employee/checkout",
+        { latitude: location?.latitude, longitude: location?.longitude },
+        false,
+      );
 
-    window.dispatchEvent(
-      new CustomEvent("attendance-checkout", {
-        detail: { countTime: res.data?.data?.countTime ?? 0 },
-      })
-    );
-  } catch (err) {
-    console.error("Checkout API failed:", err);
-  }
+      window.dispatchEvent(
+        new CustomEvent("attendance-checkout", {
+          detail: { countTime: res.data?.data?.countTime ?? 0 },
+        }),
+      );
+    } catch (err) {
+      console.error("Checkout API failed:", err);
+    }
 
-  setSession(null);
-  clearAuthStorage();
-  dispatch({ type: "LOGOUT" });
-};
+    setSession(null);
+    clearAuthStorage();
+    dispatch({ type: "LOGOUT" });
+    window.location.href = import.meta.env.VITE_ADMIN_LOGIN_URL;
+  };
 
   if (!children) return null;
 
@@ -357,6 +384,6 @@ function clearAuthStorage() {
   window.localStorage.removeItem("roleId");
   window.localStorage.removeItem("roleName");
   window.localStorage.removeItem("employeeName");
-    window.localStorage.removeItem("latitude");
+  window.localStorage.removeItem("latitude");
   window.localStorage.removeItem("longitude");
 }
