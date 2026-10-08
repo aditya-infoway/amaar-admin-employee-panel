@@ -23,6 +23,30 @@ interface PendingTask {
   workOrderId: number;
   workOrderNo: string;
   workOrderDate: string;
+  materialStatus?: string;
+}
+
+const MATERIAL_STATUS_STYLES: Record<string, string> = {
+  "Pending Material": "bg-gray-500/15 text-gray-400",
+  "Indent Generate": "bg-amber-500/15 text-amber-500",
+  "PO Generate": "bg-sky-500/15 text-sky-500",
+  "GRR Complete": "bg-violet-500/15 text-violet-500",
+  "QC Complete": "bg-teal-500/15 text-teal-500",
+  "Purchase Complete": "bg-emerald-500/15 text-emerald-500",
+};
+
+function MaterialStatusBadge({ status }: { status?: string }) {
+  const label = status || "Pending Material";
+  return (
+    <span
+      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium whitespace-nowrap ${
+        MATERIAL_STATUS_STYLES[label] ||
+        MATERIAL_STATUS_STYLES["Pending Material"]
+      }`}
+    >
+      {label}
+    </span>
+  );
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -55,6 +79,11 @@ const columns: ColumnDef<PendingTask>[] = [
           })
         : "-";
     },
+  },
+  {
+    accessorKey: "materialStatus",
+    header: "Status",
+    cell: ({ getValue }) => <MaterialStatusBadge status={getValue<string>()} />,
   },
 ];
 

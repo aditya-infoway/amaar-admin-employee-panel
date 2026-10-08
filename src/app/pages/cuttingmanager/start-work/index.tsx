@@ -6,9 +6,13 @@ import {
   Transition,
   TransitionChild,
 } from "@headlessui/react";
-
+import { useDisclosure } from "@/hooks";
 import { XMarkIcon } from "@heroicons/react/24/solid";
-import { EyeIcon, CheckIcon } from "@heroicons/react/24/outline";
+import {
+  EyeIcon,
+  CheckIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 
 import {
   getCoreRowModel,
@@ -32,6 +36,8 @@ import { Get, Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
 
 import { MasterTable } from "../shared/MasterTable";
 import { MasterToolbar } from "../shared/MasterToolbar";
+import ItemProcessDrawer from "./ItemProcessDrawer";
+import { ConfirmModal } from "@/components/shared/ConfirmModal";
 
 interface Task {
   workOrderStageId: number;
@@ -40,7 +46,10 @@ interface Task {
   workOrderDate: string;
   status: string;
   isUnlocked: boolean;
+  materialStatus?: string;
   startTime?: string | null;
+  endTime?: string | null;
+  itemsVerified?: boolean;
 }
 
 interface TaskOption {
@@ -86,15 +95,49 @@ export default function StartWork() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedTask, setSelectedTask] = useState<TaskOption | null>(null);
 
+  const [isItemDrawerOpen, setIsItemDrawerOpen] = useState(false);
+  const [itemTask, setItemTask] = useState<Task | null>(null);
+  const [endingId, setEndingId] = useState<number | null>(null);
+
   const [globalFilter, setGlobalFilter] = useState("");
   const [sorting, setSorting] = useState<SortingState>([]);
 
   const [showFilters, setShowFilters] = useState(false);
   const [filterWorkOrderNo, setFilterWorkOrderNo] = useState("");
 
+  const [isEndConfirmOpen, { open: openEndConfirm, close: closeEndConfirm }] =
+    useDisclosure();
+  const [endConfirmLoading, setEndConfirmLoading] = useState(false);
+  const [endSuccess, setEndSuccess] = useState(false);
+  const [endError, setEndError] = useState(false);
+  const [taskToEnd, setTaskToEnd] = useState<Task | null>(null);
+
+  const endState = endError ? "error" : endSuccess ? "success" : "pending";
+
+  const endMessages = {
+    pending: {
+      Icon: ExclamationTriangleIcon,
+      title: "End Work?",
+      description: taskToEnd
+        ? `Are you sure you want to end work for ${taskToEnd.workOrderNo}? The end time will be recorded and cannot be undone.`
+        : "Are you sure you want to end this work?",
+      actionText: "End Work",
+    },
+    success: {
+      title: "Work Completed",
+    },
+    error: {
+      description:
+        "Something went wrong. Please try again. Contact support if the issue remains.",
+    },
+  };
+
   // ✅ define startedTasks FIRST
   const startedTasks = useMemo(
-    () => tasks.filter((t) => t.status === "In Progress"),
+    () =>
+      tasks.filter(
+        (t) => t.status === "In Progress" || t.status === "Completed",
+      ),
     [tasks],
   );
 
@@ -118,6 +161,7 @@ export default function StartWork() {
       { key: "workOrderNo", header: "Work Order No" },
       { key: "workOrderDate", header: "Work Order Date" },
       { key: "startTime", header: "Start Time" },
+      { key: "endTime", header: "End Time" },
       { key: "status", header: "Status" },
     ],
     [],
@@ -153,7 +197,12 @@ export default function StartWork() {
   const availableTasks = useMemo<TaskOption[]>(
     () =>
       tasks
-        .filter((t) => t.status === "Pending" && t.isUnlocked)
+        .filter(
+          (t) =>
+            t.status === "Pending" &&
+            t.isUnlocked &&
+            t.materialStatus === "Purchase Complete",
+        )
         .map((t) => ({
           workOrderStageId: t.workOrderStageId,
           workOrderNo: t.workOrderNo,
@@ -208,6 +257,59 @@ export default function StartWork() {
     }
   };
 
+  const openItemDrawer = (task: Task) => {
+    setItemTask(task);
+    setIsItemDrawerOpen(true);
+  };
+
+  const requestEndWork = (task: Task) => {
+    setTaskToEnd(task);
+    setEndSuccess(false);
+    setEndError(false);
+    openEndConfirm();
+  };
+
+  const confirmEndWork = async () => {
+    if (!taskToEnd) return;
+
+    try {
+      setEndConfirmLoading(true);
+      setEndingId(taskToEnd.workOrderStageId);
+
+      const response = await Post(
+        "workordertask/end",
+        { workOrderStageId: taskToEnd.workOrderStageId },
+        false,
+      );
+
+      if (response?.data?.success || response?.data?.status === 200) {
+        const seconds = Number(response?.data?.data?.durationSeconds) || 0;
+        setEndSuccess(true);
+        setEndError(false);
+        toastsuccessmsg(
+          `Work completed. Total time ${formatDuration(seconds * 1000)}`,
+        );
+        fetchTasks();
+      } else {
+        setEndError(true);
+        setEndSuccess(false);
+        toasterrormsg(response?.data?.message || "Failed to end work.");
+      }
+    } catch (error: any) {
+      console.error("End work error:", error);
+      setEndError(true);
+      setEndSuccess(false);
+      toasterrormsg(
+        error?.response?.data?.message ||
+          error?.message ||
+          "Something went wrong.",
+      );
+    } finally {
+      setEndConfirmLoading(false);
+      setEndingId(null);
+    }
+  };
+
   const columns = useMemo(
     () => [
       columnHelper.display({
@@ -243,11 +345,35 @@ export default function StartWork() {
         id: "workingTime",
         header: "Working Time",
         cell: ({ row }) => {
-          const start = row.original.startTime;
+          const { startTime, endTime } = row.original;
+          if (!startTime) return <span className="text-gray-400">-</span>;
+
+          const end = endTime ? new Date(endTime).getTime() : now;
+          const ms = end - new Date(startTime).getTime();
+          const totalSec = Math.max(0, Math.floor(ms / 1000));
+
+          const days = Math.floor(totalSec / 86400);
+          const hours = Math.floor((totalSec % 86400) / 3600);
+          const mins = Math.floor((totalSec % 3600) / 60);
+          const secs = totalSec % 60;
+
+          // Compact circular-style chips
+          const Chip = ({ value, label }: { value: number; label: string }) => (
+            <div className="flex flex-col items-center">
+              <div className="border-primary-500/70 bg-primary-500/10 text-primary-600 dark:text-primary-400 flex size-9 items-center justify-center rounded-full border-2 text-xs font-semibold">
+                {String(value).padStart(2, "0")}
+              </div>
+              <span className="mt-0.5 text-[10px] text-gray-400">{label}</span>
+            </div>
+          );
+
           return (
-            <span className="font-mono">
-              {start ? formatDuration(now - new Date(start).getTime()) : "-"}
-            </span>
+            <div className="flex items-center gap-1.5">
+              {days > 0 && <Chip value={days} label="d" />}
+              <Chip value={hours} label="h" />
+              <Chip value={mins} label="m" />
+              <Chip value={secs} label="s" />
+            </div>
           );
         },
       }),
@@ -255,11 +381,12 @@ export default function StartWork() {
       columnHelper.display({
         id: "itemProcess",
         header: "Item Process",
-        cell: () => (
+        cell: ({ row }) => (
           <button
             type="button"
             title="Item Process"
-            className="dark:text-dark-200 text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
+            onClick={() => openItemDrawer(row.original)}
+            className="dark:text-dark-200 cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
           >
             <EyeIcon className="mx-auto size-5" />
           </button>
@@ -269,18 +396,63 @@ export default function StartWork() {
       columnHelper.display({
         id: "endTime",
         header: "End Time",
-        cell: () => (
-          <button
-            type="button"
-            title="End Work"
-            className="dark:text-dark-200 text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
-          >
-            <CheckIcon className="mx-auto size-5" />
-          </button>
-        ),
+        cell: ({ row }) => {
+          const task = row.original;
+
+          // finished → show nice end time badge
+          if (task.endTime) {
+            return (
+              <div className="inline-flex flex-col items-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs">
+                <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                  {formatTime(task.endTime)}
+                </span>
+                <span className="text-[10px] text-gray-400">
+                  {formatDate(task.endTime)}
+                </span>
+              </div>
+            );
+          }
+
+          // still running → check icon (enabled only after items verified)
+          const canEnd =
+            task.status === "In Progress" && Boolean(task.itemsVerified);
+          const isLoading = endingId === task.workOrderStageId;
+
+          return (
+            <div className="flex justify-start">
+              <button
+                type="button"
+                title={canEnd ? "End Work" : "Verify items first"}
+                disabled={!canEnd || isLoading}
+                onClick={() => requestEndWork(task)}
+                className={[
+                  "group relative inline-flex size-9 cursor-pointer items-center justify-center rounded-full border transition-all duration-200",
+                  "focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500/50 focus-visible:ring-offset-2",
+                  "dark:focus-visible:ring-offset-dark-700",
+                  canEnd
+                    ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:border-emerald-500 hover:bg-emerald-500 hover:text-white hover:shadow-md hover:shadow-emerald-500/30 active:scale-95 dark:text-emerald-400 dark:hover:text-white"
+                    : "dark:border-dark-500 dark:bg-dark-600 dark:text-dark-400 cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300",
+                ].join(" ")}
+              >
+                <CheckIcon
+                  className={[
+                    "size-5 transition-transform duration-200",
+                    canEnd ? "group-hover:scale-110" : "",
+                  ].join(" ")}
+                />
+
+                {/* Tooltip */}
+                <span className="dark:bg-dark-900 pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 rounded-md bg-gray-900 px-2 py-1 text-[10px] font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
+                  {canEnd ? "End Work" : "Verify items first"}
+                </span>
+              </button>
+            </div>
+          );
+        },
       }),
     ],
-    [now],
+
+    [now, endingId],
   );
 
   const table = useReactTable({
@@ -432,6 +604,26 @@ export default function StartWork() {
           </TransitionChild>
         </Dialog>
       </Transition>
+      <ItemProcessDrawer
+        isOpen={isItemDrawerOpen}
+        close={() => setIsItemDrawerOpen(false)}
+        workOrderStageId={itemTask?.workOrderStageId ?? null}
+        workOrderNo={itemTask?.workOrderNo || ""}
+        onSaved={fetchTasks}
+      />
+      <ConfirmModal
+        show={isEndConfirmOpen}
+        onClose={() => {
+          closeEndConfirm();
+          setTaskToEnd(null);
+          setEndSuccess(false);
+          setEndError(false);
+        }}
+        messages={endMessages}
+        onOk={confirmEndWork}
+        confirmLoading={endConfirmLoading}
+        state={endState}
+      />
     </Page>
   );
 }
