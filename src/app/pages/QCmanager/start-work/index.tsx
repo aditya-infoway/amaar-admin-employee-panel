@@ -50,6 +50,7 @@ interface Task {
   startTime?: string | null;
   endTime?: string | null;
   itemsVerified?: boolean;
+  stage?: string;
 }
 
 interface TaskOption {
@@ -197,12 +198,7 @@ export default function StartWork() {
   const availableTasks = useMemo<TaskOption[]>(
     () =>
       tasks
-        .filter(
-          (t) =>
-            t.status === "Pending" &&
-            t.isUnlocked &&
-            t.materialStatus === "Purchase Complete",
-        )
+        .filter((t) => t.status === "Pending" && t.isUnlocked)
         .map((t) => ({
           workOrderStageId: t.workOrderStageId,
           workOrderNo: t.workOrderNo,
@@ -378,48 +374,66 @@ export default function StartWork() {
         },
       }),
 
-      columnHelper.display({
-        id: "itemProcess",
-        header: "Item Process",
-        cell: ({ row }) => (
-          <button
-            type="button"
-            title="Item Process"
-            onClick={() => openItemDrawer(row.original)}
-            className="dark:text-dark-200 cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
-          >
-            <EyeIcon className="mx-auto size-5" />
-          </button>
-        ),
-      }),
+      // columnHelper.display({
+      //   id: "itemProcess",
+      //   header: "Item Process",
+      //   cell: ({ row }) => (
+      //     <button
+      //       type="button"
+      //       title="Item Process"
+      //       onClick={() => openItemDrawer(row.original)}
+      //       className="dark:text-dark-200 cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
+      //     >
+      //       <EyeIcon className="mx-auto size-5" />
+      //     </button>
+      //   ),
+      // }),
 
       columnHelper.display({
         id: "endTime",
         header: "End Time",
         cell: ({ row }) => {
           const task = row.original;
+          const needsItems = task.stage === "CUTTING"; // only Cutting needs items
 
-          // finished → show nice end time badge
+          const EyeButton = needsItems ? (
+            <button
+              type="button"
+              title="Item Process"
+              onClick={() => openItemDrawer(task)}
+              className="dark:text-dark-200 cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
+            >
+              <EyeIcon className="size-5" />
+            </button>
+          ) : null;
+
+          // finished → end time badge
           if (task.endTime) {
             return (
-              <div className="inline-flex flex-col items-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs">
-                <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                  {formatTime(task.endTime)}
-                </span>
-                <span className="text-[10px] text-gray-400">
-                  {formatDate(task.endTime)}
-                </span>
+              <div className="flex items-center gap-3">
+                <div className="inline-flex flex-col items-center rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs">
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    {formatTime(task.endTime)}
+                  </span>
+                  <span className="text-[10px] text-gray-400">
+                    {formatDate(task.endTime)}
+                  </span>
+                </div>
+                {EyeButton}
               </div>
             );
           }
 
-          // still running → check icon (enabled only after items verified)
+          // running → End enabled when verified OR stage doesn't need items
           const canEnd =
-            task.status === "In Progress" && Boolean(task.itemsVerified);
+            task.status === "In Progress" &&
+            (Boolean(task.itemsVerified) || !needsItems);
           const isLoading = endingId === task.workOrderStageId;
 
           return (
-            <div className="flex justify-start">
+            <div className="flex items-center gap-3">
+              {EyeButton}
+
               <button
                 type="button"
                 title={canEnd ? "End Work" : "Verify items first"}
@@ -440,8 +454,6 @@ export default function StartWork() {
                     canEnd ? "group-hover:scale-110" : "",
                   ].join(" ")}
                 />
-
-                {/* Tooltip */}
                 <span className="dark:bg-dark-900 pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 rounded-md bg-gray-900 px-2 py-1 text-[10px] font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
                   {canEnd ? "End Work" : "Verify items first"}
                 </span>

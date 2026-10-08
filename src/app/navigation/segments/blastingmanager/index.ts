@@ -2,4 +2,6 @@ import { dashboards } from "./dashboards";
 import { logout } from "./logout";
 // ya jahan se bhi ye export ho raha hai
 import { settings } from "./settings";
-export const blastingmanagerNavigation = [dashboards, settings, logout];
+import { pendingWork } from "./pendingwork";
+import { startwork } from "./workorder";
+export const blastingmanagerNavigation = [dashboards,pendingWork,  startwork, settings, logout, ];
