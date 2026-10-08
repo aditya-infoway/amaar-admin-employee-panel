@@ -2,7 +2,10 @@ import { Navigate } from "react-router";
 
 // Dashboard
 import Dashboard from "@/app/pages/QCmanager/dashboards/home/crm-analytics";
+import PendingWorkOrders from "../pages/QCmanager/pending-work";
 
+// ✅ Import the actual page component, NOT the navigation tree
+import StartWork from "@/app/pages/QCmanager/start-work";
 // enquiry
 // import Enquiry from "@/app/pages/sale-executive/lead-master/enquiry";
 // import Quotation from "@/app/pages/sale-executive/lead-master/quotation";
@@ -33,7 +36,33 @@ export const QCmanagerRoutes = [
       },
     ],
   },
+{
+    path: "pending-work",
+    children: [
+      {
+        index: true,
+        element: <Navigate to="pending" replace />, // relative is better
+      },
+      {
+        path: "pending",
+        Component: PendingWorkOrders,
+      },
+    ],
+  },
 
+  {
+    path: "start-work",
+    children: [
+      {
+        index: true,
+        element: <Navigate to="startwork" replace />, // relative
+      },
+      {
+        path: "startwork",
+        Component: StartWork, // ✅ real component
+      },
+    ],
+  },
 //   {
 //     path: "lead-master",
 //     children: [
