@@ -50,6 +50,7 @@ interface Task {
   startTime?: string | null;
   endTime?: string | null;
   itemsVerified?: boolean;
+  stage?: string;
 }
 
 interface TaskOption {
@@ -194,22 +195,17 @@ export default function StartWork() {
     fetchTasks();
   }, []);
 
-  const availableTasks = useMemo<TaskOption[]>(
-    () =>
-      tasks
-        .filter(
-          (t) =>
-            t.status === "Pending" &&
-            t.isUnlocked &&
-            t.materialStatus === "Purchase Complete",
-        )
-        .map((t) => ({
-          workOrderStageId: t.workOrderStageId,
-          workOrderNo: t.workOrderNo,
-          label: t.workOrderNo,
-        })),
-    [tasks],
-  );
+ const availableTasks = useMemo<TaskOption[]>(
+  () =>
+    tasks
+      .filter((t) => t.status === "Pending" && t.isUnlocked)
+      .map((t) => ({
+        workOrderStageId: t.workOrderStageId,
+        workOrderNo: t.workOrderNo,
+        label: t.workOrderNo,
+      })),
+  [tasks],
+);
 
   const openDrawer = () => {
     setSelectedTask(null);
@@ -393,13 +389,14 @@ export default function StartWork() {
       //   ),
       // }),
 
-         columnHelper.display({
+      columnHelper.display({
         id: "endTime",
         header: "End Time",
         cell: ({ row }) => {
           const task = row.original;
+          const needsItems = task.stage === "CUTTING"; // only Cutting needs item verify
 
-          const EyeButton = (
+          const EyeButton = needsItems ? (
             <button
               type="button"
               title="Item Process"
@@ -408,9 +405,9 @@ export default function StartWork() {
             >
               <EyeIcon className="size-5" />
             </button>
-          );
+          ) : null;
 
-          // finished → end time badge + eye
+          // finished → end time badge
           if (task.endTime) {
             return (
               <div className="flex items-center gap-3">
@@ -427,9 +424,10 @@ export default function StartWork() {
             );
           }
 
-          // still running → eye + check (check enabled only after items verified)
+          // running → End enabled when verified (or stage doesn't need items)
           const canEnd =
-            task.status === "In Progress" && Boolean(task.itemsVerified);
+            task.status === "In Progress" &&
+            (Boolean(task.itemsVerified) || !needsItems);
           const isLoading = endingId === task.workOrderStageId;
 
           return (
@@ -456,7 +454,6 @@ export default function StartWork() {
                     canEnd ? "group-hover:scale-110" : "",
                   ].join(" ")}
                 />
-
                 <span className="dark:bg-dark-900 pointer-events-none absolute -top-8 left-1/2 z-10 -translate-x-1/2 rounded-md bg-gray-900 px-2 py-1 text-[10px] font-medium whitespace-nowrap text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100">
                   {canEnd ? "End Work" : "Verify items first"}
                 </span>
