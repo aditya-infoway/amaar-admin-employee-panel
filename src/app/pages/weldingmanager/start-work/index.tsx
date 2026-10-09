@@ -51,6 +51,8 @@ interface Task {
   endTime?: string | null;
   itemsVerified?: boolean;
   stage?: string;
+  model?: string;
+  modelName?: string;
 }
 
 interface TaskOption {
@@ -195,17 +197,17 @@ export default function StartWork() {
     fetchTasks();
   }, []);
 
- const availableTasks = useMemo<TaskOption[]>(
-  () =>
-    tasks
-      .filter((t) => t.status === "Pending" && t.isUnlocked)
-      .map((t) => ({
-        workOrderStageId: t.workOrderStageId,
-        workOrderNo: t.workOrderNo,
-        label: t.workOrderNo,
-      })),
-  [tasks],
-);
+  const availableTasks = useMemo<TaskOption[]>(
+    () =>
+      tasks
+        .filter((t) => t.status === "Pending" && t.isUnlocked)
+        .map((t) => ({
+          workOrderStageId: t.workOrderStageId,
+          workOrderNo: t.workOrderNo,
+          label: t.workOrderNo,
+        })),
+    [tasks],
+  );
 
   const openDrawer = () => {
     setSelectedTask(null);
@@ -321,6 +323,13 @@ export default function StartWork() {
         header: "Work Order No",
         cell: ({ getValue }) => (
           <span className="font-medium">{getValue() || "-"}</span>
+        ),
+      }),
+
+      columnHelper.accessor("modelName", {
+        header: "Model",
+        cell: ({ row }) => (
+          <span>{row.original.modelName || row.original.model || "-"}</span>
         ),
       }),
 

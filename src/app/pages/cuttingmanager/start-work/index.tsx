@@ -50,6 +50,8 @@ interface Task {
   startTime?: string | null;
   endTime?: string | null;
   itemsVerified?: boolean;
+  model?: string;
+  modelName?: string;
 }
 
 interface TaskOption {
@@ -325,6 +327,13 @@ export default function StartWork() {
         header: "Work Order No",
         cell: ({ getValue }) => (
           <span className="font-medium">{getValue() || "-"}</span>
+        ),
+      }),
+
+      columnHelper.accessor("modelName", {
+        header: "Model",
+        cell: ({ row }) => (
+          <span>{row.original.modelName || row.original.model || "-"}</span>
         ),
       }),
 

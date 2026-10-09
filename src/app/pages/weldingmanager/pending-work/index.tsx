@@ -25,6 +25,8 @@ interface PendingTask {
   workOrderDate: string;
   materialStatus?: string;
   stageProgressStatus?: string | null;
+  model?: string;
+  modelName?: string;
 }
 
 function StatusBadge({ task }: { task: PendingTask }) {
@@ -59,6 +61,13 @@ const columns: ColumnDef<PendingTask>[] = [
     header: "Work Order No",
     cell: ({ getValue }) => (
       <span className="font-medium">{getValue<string>()}</span>
+    ),
+  },
+  {
+    accessorKey: "modelName",
+    header: "Model",
+    cell: ({ row }) => (
+      <span>{row.original.modelName || row.original.model || "-"}</span>
     ),
   },
   {
