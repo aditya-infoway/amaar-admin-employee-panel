@@ -24,6 +24,8 @@ interface PendingTask {
   workOrderNo: string;
   workOrderDate: string;
   materialStatus?: string;
+  model?: string;
+  modelName?: string;
 }
 
 const MATERIAL_STATUS_STYLES: Record<string, string> = {
@@ -64,6 +66,13 @@ const columns: ColumnDef<PendingTask>[] = [
     header: "Work Order No",
     cell: ({ getValue }) => (
       <span className="font-medium">{getValue<string>()}</span>
+    ),
+  },
+  {
+    accessorKey: "modelName",
+    header: "Model",
+    cell: ({ row }) => (
+      <span>{row.original.modelName || row.original.model || "-"}</span>
     ),
   },
   {
