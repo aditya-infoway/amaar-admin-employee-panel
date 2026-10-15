@@ -223,6 +223,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         employeeName,
         companyId,
         companyName,
+        // NEW: Production employee (process / sub-process login)
+        loginType,
+        processId,
+        processName,
+        subProcessId,
+        subProcessName,
       } = result.data;
 
       window.localStorage.setItem(PENDING_TOKEN_KEY, token);
@@ -234,7 +240,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem("roleId", roleId);
       window.localStorage.setItem("roleName", roleName);
       window.localStorage.setItem("employeeName", employeeName);
- window.localStorage.setItem("latitude", String(credentials.latitude ?? ""));
+
+      // NEW: process / sub-process info (Production employee ke liye)
+      window.localStorage.setItem("loginType", loginType ?? "ROLE");
+      window.localStorage.setItem("processId", String(processId ?? ""));
+      window.localStorage.setItem("processName", processName ?? "");
+      window.localStorage.setItem("subProcessId", String(subProcessId ?? ""));
+      window.localStorage.setItem("subProcessName", subProcessName ?? "");
+
+      window.localStorage.setItem("latitude", String(credentials.latitude ?? ""));
       window.localStorage.setItem("longitude", String(credentials.longitude ?? ""));
       toastsuccessmsg(result.message);
 
@@ -249,7 +263,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // ✅ NEW — SignIn page ko roleName + companyId wapas do, taaki wo decide
       // kar sake ki select-company page dikhana hai ya seedha dashboard bhejna hai
-      return { companyId, companyName, roleId, roleName, employeeName, department };
+      return {
+        companyId,
+        companyName,
+        roleId,
+        roleName,
+        employeeName,
+        department,
+        loginType,
+        processId,
+        processName,
+        subProcessId,
+        subProcessName,
+      };
     } catch (err: any) {
       const message =
         err?.response?.data?.message || err.message || "Login failed";
@@ -357,6 +383,12 @@ function clearAuthStorage() {
   window.localStorage.removeItem("roleId");
   window.localStorage.removeItem("roleName");
   window.localStorage.removeItem("employeeName");
-    window.localStorage.removeItem("latitude");
+  // NEW: process / sub-process keys
+  window.localStorage.removeItem("loginType");
+  window.localStorage.removeItem("processId");
+  window.localStorage.removeItem("processName");
+  window.localStorage.removeItem("subProcessId");
+  window.localStorage.removeItem("subProcessName");
+  window.localStorage.removeItem("latitude");
   window.localStorage.removeItem("longitude");
 }
