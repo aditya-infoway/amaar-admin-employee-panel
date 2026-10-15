@@ -1,5 +1,6 @@
 import { useRoutes } from "react-router";
 // import { useAuthContext } from "@/app/contexts/auth/context";
+import { getEffectiveRoleId } from "@/utils/effectiveRole";
 import { securityRoutes } from "./security";
 import { SaleExecutiveRoutes } from "./saleExecutive";
 import { cuttingmanagerRoutes } from "./cuttingmanager";
@@ -12,10 +13,12 @@ import { QCmanagerRoutes } from "./QCmanager";
 import { productionmanagerRoutes } from "./productionmanager";
 import { hrRoutes } from "./hr";
 import { storemanagerRoutes } from "./storemanager";
-import {contractormanagerRoutes} from "./contractormanager"
+import { contractormanagerRoutes } from "./contractormanager";
+
 export default function RoleRoutes() {
-  const roleIdRaw = window.localStorage.getItem("roleId");
-  const roleId = Number(roleIdRaw);
+  // Normal employee -> localStorage roleId
+  // Production employee -> process ke hisaab se mapped roleId
+  const roleId = getEffectiveRoleId();
 
   const roleRoutes =
     roleId === 2
@@ -43,8 +46,8 @@ export default function RoleRoutes() {
                           : roleId === 16
                             ? storemanagerRoutes
                             : roleId === 18
-                            ? contractormanagerRoutes
-                            : [];
+                              ? contractormanagerRoutes
+                              : [];
 
   return useRoutes(roleRoutes);
 }
