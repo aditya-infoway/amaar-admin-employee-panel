@@ -27,6 +27,7 @@ import {
   UserGroupIcon,
   CircleStackIcon,
   HashtagIcon,
+  InboxArrowDownIcon,
 } from "@heroicons/react/24/outline";
 import { ElementType } from "react";
 
@@ -78,7 +79,10 @@ export const navigationIcons: Record<string, ElementType> = {
 
   stockReport: CircleStackIcon,
   "stock_report.stockReport": ClipboardDocumentListIcon,
-  
+
+  itemRequest: InboxArrowDownIcon,
+  "item_request.itemRequest": InboxArrowDownIcon,
+
   itemRequestRegister: RectangleStackIcon,
   "item_request_register.itemRequestRegister": ClipboardDocumentListIcon,
 

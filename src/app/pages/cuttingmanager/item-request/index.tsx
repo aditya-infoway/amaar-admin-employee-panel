@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Combobox } from "@/components/shared/form/StyledCombobox";
 import { Page } from "@/components/shared/Page";
@@ -14,8 +14,8 @@ import {
   Tr,
 } from "@/components/ui";
 
-import { CheckCircleIcon, TrashIcon } from "@heroicons/react/24/outline";
-import { PlusIcon } from "@heroicons/react/20/solid"; // Added for the plus icon
+import { TrashIcon } from "@heroicons/react/24/outline";
+import { PlusIcon } from "@heroicons/react/20/solid";
 
 import { Get, Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
 
@@ -66,11 +66,9 @@ export default function ItemRequestPage() {
   const [itemLoading, setItemLoading] = useState(false);
   const [selectedItem, setSelectedItem] = useState<ItemOption | null>(null);
 
-  /* ---------------- Item Entry ---------------- */
+  /* ---------------- Issue Qty (Manual Entry) ---------------- */
 
-  const [itemCode, setItemCode] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [qty, setQty] = useState<number | "">("");
+  const [issueQty, setIssueQty] = useState<number | "">("");
 
   /* ---------------- Request Rows ---------------- */
 
@@ -146,9 +144,7 @@ export default function ItemRequestPage() {
     if (!workOrderId) {
       setItems([]);
       setSelectedItem(null);
-      setItemCode("");
-      setItemName("");
-      setQty("");
+      setIssueQty("");
       setItemLoading(false);
       return () => {
         mounted = false;
@@ -159,9 +155,7 @@ export default function ItemRequestPage() {
       try {
         setItemLoading(true);
         setSelectedItem(null);
-        setItemCode("");
-        setItemName("");
-        setQty("");
+        setIssueQty("");
 
         const response = await Get(
           "contractor/itemrequest/items-by-workorder",
@@ -207,37 +201,33 @@ export default function ItemRequestPage() {
   const handleWorkOrderChange = (workOrder: WorkOrderOption | null) => {
     setSelectedWorkOrder(workOrder);
     setSelectedItem(null);
-    setItemCode("");
-    setItemName("");
-    setQty("");
+    setIssueQty("");
   };
 
   const handleItemChange = (item: ItemOption | null) => {
     setSelectedItem(item);
-    setItemCode(item?.itemCode ?? "");
-    setItemName(item?.itemName ?? "");
-    setQty("");
+    setIssueQty(""); // Reset issue qty when a new item is selected
   };
 
   const handleAddRow = () => {
-    if (!selectedItem || !itemCode || !itemName) {
+    if (!selectedItem) {
       toasterrormsg("Please select an item");
       return;
     }
 
-    if (qty === "" || Number(qty) <= 0) {
-      toasterrormsg("Please enter a quantity greater than 0");
+    if (issueQty === "" || Number(issueQty) <= 0) {
+      toasterrormsg("Please enter an Issue Qty greater than 0");
       return;
     }
 
-    if (!Number.isInteger(Number(qty))) {
-      toasterrormsg("Quantity must be a whole number");
+    if (!Number.isInteger(Number(issueQty))) {
+      toasterrormsg("Issue Qty must be a whole number");
       return;
     }
 
     const maxQty = selectedItem.bomQty ?? 0;
-    if (Number(qty) > maxQty) {
-      toasterrormsg(`Qty cannot exceed ${maxQty} (BOM quantity)`);
+    if (Number(issueQty) > maxQty) {
+      toasterrormsg(`Issue Qty cannot exceed BOM quantity (${maxQty})`);
       return;
     }
 
@@ -250,18 +240,17 @@ export default function ItemRequestPage() {
       id: Date.now(),
       bomItemId: selectedItem.id,
       itemId: selectedItem.itemId,
-      itemCode: itemCode,
-      itemName: itemName,
-      qty: Number(qty),
+      itemCode: selectedItem.itemCode,
+      itemName: selectedItem.itemName,
+      qty: Number(issueQty), // Add the manually entered issue qty
       unit: selectedItem.unit,
     };
 
     setRows((prev) => [...prev, newRow]);
 
+    // Reset only the item and qty fields after adding
     setSelectedItem(null);
-    setItemCode("");
-    setItemName("");
-    setQty("");
+    setIssueQty("");
   };
 
   const handleRemoveRow = (id: number) => {
@@ -300,9 +289,7 @@ export default function ItemRequestPage() {
         toastsuccessmsg("Item Request sent to Store Manager successfully");
         setSelectedWorkOrder(null);
         setSelectedItem(null);
-        setItemCode("");
-        setItemName("");
-        setQty("");
+        setIssueQty("");
         setRows([]);
         setItems([]);
       } else {
@@ -323,15 +310,11 @@ export default function ItemRequestPage() {
   /* VALIDATION                                                       */
   /* ================================================================ */
 
-  const canAdd = useMemo(
-    () =>
-      Boolean(
-        selectedItem &&
-        qty !== "" &&
-        Number(qty) > 0 &&
-        Number.isInteger(Number(qty)),
-      ),
-    [selectedItem, qty],
+  const canAdd = Boolean(
+    selectedItem &&
+    issueQty !== "" &&
+    Number(issueQty) > 0 &&
+    Number(issueQty) <= (selectedItem.bomQty ?? 0),
   );
 
   const canSubmit = Boolean(
@@ -351,107 +334,96 @@ export default function ItemRequestPage() {
           </h2>
 
           {/* ====================================================== */}
-          {/* ROW 1: WORK ORDER + ITEM DROPDOWNS                     */}
+          {/* ROW: WORK ORDER + ITEM + QTY + ISSUE QTY + ADD         */}
           {/* ====================================================== */}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <Combobox
-              data={workOrders}
-              displayField="workOrderNo"
-              value={selectedWorkOrder}
-              onChange={handleWorkOrderChange}
-              placeholder={
-                workOrderLoading
-                  ? "Loading Work Orders..."
-                  : "Search Work Order"
-              }
-              label="Select Work Order"
-              searchFields={["workOrderNo"]}
-              disabled={workOrderLoading}
-            />
-
-            <Combobox
-              data={items}
-              displayField="itemName"
-              value={selectedItem}
-              onChange={handleItemChange}
-              placeholder={
-                !selectedWorkOrder
-                  ? "Select Work Order first"
-                  : itemLoading
-                    ? "Loading Items..."
-                    : "Search Item"
-              }
-              label="Select Item"
-              searchFields={["itemName", "itemCode"]}
-              disabled={!selectedWorkOrder || itemLoading}
-              renderItem={(item: ItemOption) => (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate text-sm">{item.itemName}</span>
-                  <span className="text-sm font-semibold dark:text-gray-200">
-                    Qty: {item.bomQty ?? 0}
-                  </span>
-                </div>
-              )}
-            />
-          </div>
-
-          {/* ====================================================== */}
-          {/* ROW 2: ITEM ENTRY & ADD BUTTON                         */}
-          {/* ====================================================== */}
-          <div className="mt-4 grid grid-cols-1 items-end gap-3 sm:grid-cols-12">
-            {/* Item Code (Read Only) */}
+          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-12">
+            {/* 1. Select Work Order */}
             <div className="sm:col-span-3">
-              <Input
-                label="Item Code"
-                value={itemCode}
-                readOnly
-                placeholder="Auto"
+              <Combobox
+                data={workOrders}
+                displayField="workOrderNo"
+                value={selectedWorkOrder}
+                onChange={handleWorkOrderChange}
+                placeholder={
+                  workOrderLoading ? "Loading..." : "Select Work Order"
+                }
+                label="Select Work Order"
+                searchFields={["workOrderNo"]}
+                disabled={workOrderLoading}
               />
             </div>
 
-            {/* Item Name (Read Only) */}
+            {/* 2. Select Item */}
             <div className="sm:col-span-4">
-              <Input
-                label="Item Name"
-                value={itemName}
-                readOnly
-                placeholder="Auto"
+              <Combobox
+                data={items}
+                displayField="itemName"
+                value={selectedItem}
+                onChange={handleItemChange}
+                placeholder={
+                  !selectedWorkOrder
+                    ? "Select Work Order first"
+                    : itemLoading
+                      ? "Loading..."
+                      : "Select Item"
+                }
+                label="Select Item"
+                searchFields={["itemName", "itemCode"]}
+                disabled={!selectedWorkOrder || itemLoading}
+                renderItem={(item: ItemOption) => (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm">{item.itemName}</span>
+                    <span className="text-sm font-semibold dark:text-gray-200">
+                      Qty: {item.bomQty ?? 0}
+                    </span>
+                  </div>
+                )}
               />
             </div>
 
-            {/* Qty (Editable) */}
-            <div className="sm:col-span-3">
+            {/* 3. Qty (Auto-filled Read-only) */}
+            <div className="sm:col-span-2">
               <Input
                 label="Qty"
+                value={selectedItem?.bomQty ?? ""}
+                readOnly
+                placeholder="Auto"
+              />
+            </div>
+
+            {/* 4. Issue Qty (Manual Entry) */}
+            <div className="sm:col-span-2">
+              <Input
+                label="Issue Qty"
                 type="number"
                 min={1}
                 max={selectedItem?.bomQty ?? undefined}
                 step={1}
-                value={qty}
+                value={issueQty}
                 onChange={(e) => {
                   const value = e.target.value;
                   if (value === "") {
-                    setQty("");
+                    setIssueQty("");
                     return;
                   }
                   const num = Number(value);
                   if (!Number.isFinite(num) || num < 0) return;
-                  setQty(num);
+                  setIssueQty(num);
                 }}
                 placeholder="Enter Qty"
               />
             </div>
 
-            {/* Add Button */}
-            <div className="sm:col-span-2">
+            {/* 5. Add Button */}
+            <div className="sm:col-span-1">
               <Button
                 color="primary"
                 className="h-10 w-full gap-2 rounded-md"
                 disabled={!canAdd}
                 onClick={handleAddRow}
+                title="Add Item"
               >
                 <PlusIcon className="size-5" />
-                Add
               </Button>
             </div>
           </div>
@@ -470,7 +442,7 @@ export default function ItemRequestPage() {
                     Item Name
                   </Th>
                   <Th className="dark:bg-dark-800 dark:text-dark-100 bg-gray-200 text-xs font-semibold text-gray-800 uppercase">
-                    Qty
+                    Issue Qty
                   </Th>
                   <Th className="dark:bg-dark-800 dark:text-dark-100 bg-gray-200 text-xs font-semibold text-gray-800 uppercase">
                     Action

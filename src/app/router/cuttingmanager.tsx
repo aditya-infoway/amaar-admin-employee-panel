@@ -62,11 +62,11 @@ export const cuttingmanagerRoutes = [
     children: [
       {
         index: true,
-        element: <Navigate to="itemrequestpage" replace />, // relative
+        element: <Navigate to="itemrequestpage" replace />,
       },
       {
         path: "itemrequestpage",
-        Component: ItemRequestPage, // ✅ real component
+        Component: ItemRequestPage,
       },
     ],
   },

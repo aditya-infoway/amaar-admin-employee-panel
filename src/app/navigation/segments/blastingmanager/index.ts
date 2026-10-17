@@ -4,4 +4,12 @@ import { logout } from "./logout";
 import { settings } from "./settings";
 import { pendingWork } from "./pendingwork";
 import { startwork } from "./workorder";
-export const blastingmanagerNavigation = [dashboards,pendingWork,  startwork, settings, logout, ];
+import { itemrequest } from "./itemrequest";
+export const blastingmanagerNavigation = [
+  dashboards,
+  pendingWork,
+  startwork,
+  itemrequest,
+  settings,
+  logout,
+];

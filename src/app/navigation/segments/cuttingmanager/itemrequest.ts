@@ -3,14 +3,14 @@ import { NavigationTree } from "@/@types/navigation";
 export const itemrequest: NavigationTree = {
   id: "itemrequest",
   type: "collapse",
-  path: "/itemrequest",
+  path: "/item-request",
   title: "Item Request",
-  icon: "stockReport",
+  icon: "itemRequest",
   childs: [
     {
       id: "stock_report.itemrequest",
       type: "item",
-      path: "/itemrequest",
+      path: "/item-request",
       title: "Item Request",
       icon: "stock_report.workorder",
     },

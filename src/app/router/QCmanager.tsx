@@ -6,6 +6,7 @@ import PendingWorkOrders from "../pages/QCmanager/pending-work";
 
 // ✅ Import the actual page component, NOT the navigation tree
 import StartWork from "@/app/pages/QCmanager/start-work";
+import ItemRequestPage from "../pages/QCmanager/item-request";
 // enquiry
 // import Enquiry from "@/app/pages/sale-executive/lead-master/enquiry";
 // import Quotation from "@/app/pages/sale-executive/lead-master/quotation";
@@ -32,11 +33,11 @@ export const QCmanagerRoutes = [
       },
       {
         path: "home",
-        Component: Dashboard,
+        Component: Dashboard,                                     
       },
     ],
   },
-{
+  {
     path: "pending-work",
     children: [
       {
@@ -63,47 +64,61 @@ export const QCmanagerRoutes = [
       },
     ],
   },
-//   {
-//     path: "lead-master",
-//     children: [
-//       {
-//         index: true,
-//         element: <Navigate to="/lead-master/enquiry" replace />,
-//       },
-//       {
-//         path: "enquiry",
-//         Component: Enquiry,
-//       },
-//       {
-//         path: "quotation",
-//         Component: Quotation,
-//       },
-//     ],
-//   },
 
-//    // Followups
-//   {
-//     path: "followups",
-//     children: [
-//       {
-//         index: true,
-//         element: <Navigate to="todayfollowups" replace />,
-//       },
+  {
+    path: "item-request",
+    children: [
+      {
+        index: true,
+        element: <Navigate to="itemrequestpage" replace />,
+      },
+      {
+        path: "itemrequestpage",
+        Component: ItemRequestPage,
+      },
+    ],
+  },
+  //   {
+  //     path: "lead-master",
+  //     children: [
+  //       {
+  //         index: true,
+  //         element: <Navigate to="/lead-master/enquiry" replace />,
+  //       },
+  //       {
+  //         path: "enquiry",
+  //         Component: Enquiry,
+  //       },
+  //       {
+  //         path: "quotation",
+  //         Component: Quotation,
+  //       },
+  //     ],
+  //   },
 
-//       {
-//         path: "todayfollowups",
-//         Component: TodayFollowups,
-//       },
+  //    // Followups
+  //   {
+  //     path: "followups",
+  //     children: [
+  //       {
+  //         index: true,
+  //         element: <Navigate to="todayfollowups" replace />,
+  //       },
 
-//       {
-//         path: "follow-up/:id",
-//         Component: Followup,
-//       },
+  //       {
+  //         path: "todayfollowups",
+  //         Component: TodayFollowups,
+  //       },
 
-//       {
-//         path: "history/:id",
-//         Component: FollowupHistory,
-//       },
-//     ],
-//   },
+  //       {
+  //         path: "follow-up/:id",
+  //         Component: Followup,
+  //       },
+
+  //       {
+  //         path: "history/:id",
+  //         Component: FollowupHistory,
+  //       },
+  //     ],
+  //   },
 ];
