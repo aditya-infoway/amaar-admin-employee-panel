@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 import { Combobox } from "@/components/shared/form/StyledCombobox";
 import { Page } from "@/components/shared/Page";
@@ -14,7 +14,8 @@ import {
   Tr,
 } from "@/components/ui";
 
-import { CheckCircleIcon, TrashIcon } from "@heroicons/react/24/outline";
+import { TrashIcon } from "@heroicons/react/24/outline";
+import { PlusIcon } from "@heroicons/react/20/solid"; 
 
 import { Get, Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
 
@@ -35,7 +36,6 @@ interface ItemOption {
   itemName: string;
   unit?: string;
   bomQty?: number;
-
 }
 
 interface ItemRequestRow {
@@ -57,7 +57,6 @@ export default function ItemRequestPage() {
 
   const [workOrders, setWorkOrders] = useState<WorkOrderOption[]>([]);
   const [workOrderLoading, setWorkOrderLoading] = useState(false);
-
   const [selectedWorkOrder, setSelectedWorkOrder] =
     useState<WorkOrderOption | null>(null);
 
@@ -65,14 +64,11 @@ export default function ItemRequestPage() {
 
   const [items, setItems] = useState<ItemOption[]>([]);
   const [itemLoading, setItemLoading] = useState(false);
-
   const [selectedItem, setSelectedItem] = useState<ItemOption | null>(null);
 
-  /* ---------------- Item Entry ---------------- */
+  /* ---------------- Issue Qty (Manual Entry) ---------------- */
 
-  const [itemCode, setItemCode] = useState("");
-  const [itemName, setItemName] = useState("");
-  const [qty, setQty] = useState<number | "">("");
+  const [issueQty, setIssueQty] = useState<number | "">("");
 
   /* ---------------- Request Rows ---------------- */
 
@@ -92,13 +88,8 @@ export default function ItemRequestPage() {
     const loadWorkOrders = async () => {
       try {
         setWorkOrderLoading(true);
-
         const financialYearId = localStorage.getItem("financialYearId");
-
-        const params: Record<string, any> = {
-          _t: Date.now(),
-        };
-
+        const params: Record<string, any> = { _t: Date.now() };
         if (financialYearId) {
           params.financialYearId = Number(financialYearId);
         }
@@ -112,33 +103,15 @@ export default function ItemRequestPage() {
         if (!mounted) return;
 
         if (response?.data?.success || response?.data?.status === 200) {
-          const data = Array.isArray(response.data.data)
-            ? response.data.data
-            : [];
-
+          const data = Array.isArray(response.data.data) ? response.data.data : [];
           setWorkOrders(data);
         } else {
-          console.error(
-            "Work Order API returned unsuccessful response:",
-            response?.data,
-          );
-
           setWorkOrders([]);
-
-          if (response?.data?.message) {
-            toasterrormsg(response.data.message);
-          }
+          if (response?.data?.message) toasterrormsg(response.data.message);
         }
       } catch (error: any) {
-        console.error("Failed to load work orders:", error);
-
-        console.error("Work Order error response:", error?.response);
-
-        console.error("Work Order error data:", error?.response?.data);
-
         if (mounted) {
           setWorkOrders([]);
-
           toasterrormsg(
             error?.response?.data?.message ||
               error?.message ||
@@ -153,10 +126,7 @@ export default function ItemRequestPage() {
     };
 
     loadWorkOrders();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   /* ================================================================ */
@@ -165,67 +135,40 @@ export default function ItemRequestPage() {
 
   useEffect(() => {
     let mounted = true;
-
     const workOrderId = selectedWorkOrder?.id;
 
-    /* No Work Order selected */
     if (!workOrderId) {
       setItems([]);
       setSelectedItem(null);
-      setItemCode("");
-      setItemName("");
-      setQty("");
+      setIssueQty("");
       setItemLoading(false);
-
-      return () => {
-        mounted = false;
-      };
+      return () => { mounted = false; };
     }
 
     const loadItems = async () => {
       try {
         setItemLoading(true);
-
-        /* Clear previous selected item */
         setSelectedItem(null);
-        setItemCode("");
-        setItemName("");
-        setQty("");
+        setIssueQty("");
 
         const response = await Get(
           "contractor/itemrequest/items-by-workorder",
-          {
-            workOrderId: Number(workOrderId),
-            _t: Date.now(),
-          },
+          { workOrderId: Number(workOrderId), _t: Date.now() },
           false,
         );
 
         if (!mounted) return;
 
         if (response?.data?.success || response?.data?.status === 200) {
-          const data = Array.isArray(response.data.data)
-            ? response.data.data
-            : [];
-
+          const data = Array.isArray(response.data.data) ? response.data.data : [];
           setItems(data);
         } else {
-          console.error("BOM Items API unsuccessful:", response?.data);
-
           setItems([]);
-
-          if (response?.data?.message) {
-            toasterrormsg(response.data.message);
-          }
+          if (response?.data?.message) toasterrormsg(response.data.message);
         }
       } catch (error: any) {
-        console.error("Failed to load BOM items:", error);
-
-        console.error("BOM Items error response:", error?.response);
-
         if (mounted) {
           setItems([]);
-
           toasterrormsg(
             error?.response?.data?.message ||
               error?.message ||
@@ -233,83 +176,51 @@ export default function ItemRequestPage() {
           );
         }
       } finally {
-        if (mounted) {
-          setItemLoading(false);
-        }
+        if (mounted) setItemLoading(false);
       }
     };
 
     loadItems();
-
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [selectedWorkOrder?.id]);
 
-
   /* ================================================================ */
-  /* WORK ORDER CHANGE                                                */
+  /* HANDLERS                                                         */
   /* ================================================================ */
 
   const handleWorkOrderChange = (workOrder: WorkOrderOption | null) => {
     setSelectedWorkOrder(workOrder);
-
-    /*
-     * Clear current item selection immediately.
-     * The useEffect above will then load the new BOM.
-     */
     setSelectedItem(null);
-    setItemCode("");
-    setItemName("");
-    setQty("");
-
-    /* Optional: clear already-added rows */
-    // Uncomment this if changing Work Order
-    // should remove previously added items.
-    //
-    // setRows([]);
+    setIssueQty("");
   };
-
-  /* ================================================================ */
-  /* ITEM CHANGE                                                      */
-  /* ================================================================ */
 
   const handleItemChange = (item: ItemOption | null) => {
     setSelectedItem(item);
-
-    setItemCode(item?.itemCode ?? "");
-    setItemName(item?.itemName ?? "");
-    setQty("");
+    setIssueQty(""); // Reset issue qty when a new item is selected
   };
 
-  /* ================================================================ */
-  /* ADD ITEM ROW                                                     */
-  /* ================================================================ */
-
   const handleAddRow = () => {
-    if (!selectedItem || !itemCode || !itemName) {
+    if (!selectedItem) {
       toasterrormsg("Please select an item");
       return;
     }
 
-    if (qty === "" || Number(qty) <= 0) {
-      toasterrormsg("Please enter a quantity greater than 0");
+    if (issueQty === "" || Number(issueQty) <= 0) {
+      toasterrormsg("Please enter an Issue Qty greater than 0");
       return;
     }
 
-    if (!Number.isInteger(Number(qty))) {
-      toasterrormsg("Quantity must be a whole number");
+    if (!Number.isInteger(Number(issueQty))) {
+      toasterrormsg("Issue Qty must be a whole number");
       return;
     }
 
     const maxQty = selectedItem.bomQty ?? 0;
-
-    if (Number(qty) > maxQty) {
-      toasterrormsg(`Qty cannot exceed ${maxQty} (BOM quantity)`);
+    if (Number(issueQty) > maxQty) {
+      toasterrormsg(`Issue Qty cannot exceed BOM quantity (${maxQty})`);
       return;
     }
 
-    /* Prevent duplicate BOM leaf (not duplicate item — same item can appear as separate BOM leaves) */
     if (rows.some((row) => row.bomItemId === selectedItem.id)) {
       toasterrormsg("This item is already added");
       return;
@@ -319,56 +230,40 @@ export default function ItemRequestPage() {
       id: Date.now(),
       bomItemId: selectedItem.id,
       itemId: selectedItem.itemId,
-      itemCode: itemCode,
-      itemName: itemName,
-      qty: Number(qty),
+      itemCode: selectedItem.itemCode,
+      itemName: selectedItem.itemName,
+      qty: Number(issueQty), // Add the manually entered issue qty
       unit: selectedItem.unit,
     };
 
     setRows((prev) => [...prev, newRow]);
-
-    /* Reset item entry */
+    
+    // Reset only the item and qty fields after adding
     setSelectedItem(null);
-    setItemCode("");
-    setItemName("");
-    setQty("");
+    setIssueQty("");
   };
-
-  /* ================================================================ */
-  /* REMOVE ITEM ROW                                                  */
-  /* ================================================================ */
 
   const handleRemoveRow = (id: number) => {
     setRows((prev) => prev.filter((row) => row.id !== id));
   };
 
-  /* ================================================================ */
-  /* SUBMIT ITEM REQUEST                                              */
-  /* ================================================================ */
-
   const handleRequestToStoreManager = async () => {
     if (!selectedWorkOrder) {
       toasterrormsg("Please select a Work Order");
-
       return;
     }
-
     if (rows.length === 0) {
       toasterrormsg("Please add at least one item");
-
       return;
     }
 
     try {
       setSubmitting(true);
-
       const financialYearId = localStorage.getItem("financialYearId");
 
       const payload = {
         workOrderId: Number(selectedWorkOrder.id),
-
         financialYearId: financialYearId ? Number(financialYearId) : null,
-
         items: rows.map((row) => ({
           itemId: Number(row.itemId),
           itemCode: row.itemCode || null,
@@ -382,29 +277,17 @@ export default function ItemRequestPage() {
 
       if (response?.data?.success || response?.data?.status === 200) {
         toastsuccessmsg("Item Request sent to Store Manager successfully");
-
-        /* Reset complete form */
         setSelectedWorkOrder(null);
         setSelectedItem(null);
-
-        setItemCode("");
-        setItemName("");
-        setQty("");
-
+        setIssueQty("");
         setRows([]);
         setItems([]);
       } else {
         toasterrormsg(response?.data?.message || "Failed to create request");
       }
     } catch (error: any) {
-      console.error("Create Item Request error:", error);
-
-      console.error("Create Item Request error response:", error?.response);
-
       toasterrormsg(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Something went wrong",
+        error?.response?.data?.message || error?.message || "Something went wrong",
       );
     } finally {
       setSubmitting(false);
@@ -412,23 +295,17 @@ export default function ItemRequestPage() {
   };
 
   /* ================================================================ */
-  /* BUTTON VALIDATION                                                */
+  /* VALIDATION                                                       */
   /* ================================================================ */
 
-  const canAdd = useMemo(
-    () =>
-      Boolean(
-        selectedItem &&
-        qty !== "" &&
-        Number(qty) > 0 &&
-        Number.isInteger(Number(qty)),
-      ),
-    [selectedItem, qty],
+  const canAdd = Boolean(
+    selectedItem && 
+    issueQty !== "" && 
+    Number(issueQty) > 0 && 
+    Number(issueQty) <= (selectedItem.bomQty ?? 0)
   );
 
-  const canSubmit = Boolean(
-    selectedWorkOrder && rows.length > 0 && !submitting,
-  );
+  const canSubmit = Boolean(selectedWorkOrder && rows.length > 0 && !submitting);
 
   /* ================================================================ */
   /* UI                                                               */
@@ -438,140 +315,109 @@ export default function ItemRequestPage() {
     <Page title="Item Request">
       <div className="transition-content w-full px-(--margin-x) pt-4 pb-8">
         <Card className="p-5 sm:p-6">
-          {/* ====================================================== */}
-          {/* TITLE                                                  */}
-          {/* ====================================================== */}
-
           <h2 className="dark:text-dark-50 mb-5 text-xl font-medium tracking-wide text-gray-800">
             Item Request – Contractor
           </h2>
 
           {/* ====================================================== */}
-          {/* WORK ORDER + ITEM DROPDOWNS                            */}
+          {/* ROW: WORK ORDER + ITEM + QTY + ISSUE QTY + ADD         */}
           {/* ====================================================== */}
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            {/* ---------------- Work Order ---------------- */}
-
-            <Combobox
-              data={workOrders}
-              displayField="workOrderNo"
-              value={selectedWorkOrder}
-              onChange={handleWorkOrderChange}
-              placeholder={
-                workOrderLoading
-                  ? "Loading Work Orders..."
-                  : "Search Work Order"
-              }
-              label="Select Work Order"
-              searchFields={["workOrderNo"]}
-              disabled={workOrderLoading}
-            />
-
-            {/* ---------------- Item ---------------- */}
-
-            <Combobox
-              data={items}
-              displayField="itemName"
-              value={selectedItem}
-              onChange={handleItemChange}
-              placeholder={
-                !selectedWorkOrder
-                  ? "Select Work Order first"
-                  : itemLoading
-                    ? "Loading Items..."
-                    : "Search Item"
-              }
-              label="Select Item"
-              searchFields={["itemName", "itemCode"]}
-              disabled={!selectedWorkOrder || itemLoading}
-              renderItem={(item: ItemOption) => (
-                <div className="flex items-center justify-between gap-3">
-                  <span className="truncate text-sm">{item.itemName}</span>
-                  <span className="text-sm font-semibold  dark:text-gray-200">
-                    Qty: {item.bomQty ?? 0}
-                  </span>
-                </div>
-              )}
-            />
-          </div>
-
-          {/* ====================================================== */}
-          {/* ITEM ENTRY                                              */}
-          {/* ====================================================== */}
-
-          <div className="mt-5 grid grid-cols-12 items-end gap-3">
-            {/* ---------------- Item Code ---------------- */}
-
-            <div className="col-span-12 sm:col-span-3">
-              <Input
-                label="Item Code"
-                value={itemCode}
-                readOnly
-                placeholder="Auto"
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 items-end">
+            
+            {/* 1. Select Work Order */}
+            <div className="sm:col-span-3">
+              <Combobox
+                data={workOrders}
+                displayField="workOrderNo"
+                value={selectedWorkOrder}
+                onChange={handleWorkOrderChange}
+                placeholder={
+                  workOrderLoading ? "Loading..." : "Select Work Order"
+                }
+                label="Select Work Order"
+                searchFields={["workOrderNo"]}
+                disabled={workOrderLoading}
               />
             </div>
 
-            {/* ---------------- Item Name ---------------- */}
-
-            <div className="col-span-12 sm:col-span-5">
-              <Input
-                label="Item Name"
-                value={itemName}
-                readOnly
-                placeholder="Auto"
+            {/* 2. Select Item */}
+            <div className="sm:col-span-4">
+              <Combobox
+                data={items}
+                displayField="itemName"
+                value={selectedItem}
+                onChange={handleItemChange}
+                placeholder={
+                  !selectedWorkOrder
+                    ? "Select Work Order first"
+                    : itemLoading
+                      ? "Loading..."
+                      : "Select Item"
+                }
+                label="Select Item"
+                searchFields={["itemName", "itemCode"]}
+                disabled={!selectedWorkOrder || itemLoading}
+                renderItem={(item: ItemOption) => (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="truncate text-sm">{item.itemName}</span>
+                    <span className="text-sm font-semibold dark:text-gray-200">
+                      Qty: {item.bomQty ?? 0}
+                    </span>
+                  </div>
+                )}
               />
             </div>
 
-            {/* ---------------- Quantity ---------------- */}
-
-            <div className="col-span-6 sm:col-span-2">
+            {/* 3. Qty (Auto-filled Read-only) */}
+            <div className="sm:col-span-2">
               <Input
                 label="Qty"
+                value={selectedItem?.bomQty ?? ""}
+                readOnly
+                placeholder="Auto"
+              />
+            </div>
+
+            {/* 4. Issue Qty (Manual Entry) */}
+            <div className="sm:col-span-2">
+              <Input
+                label="Issue Qty"
                 type="number"
                 min={1}
                 max={selectedItem?.bomQty ?? undefined}
                 step={1}
-                value={qty}
+                value={issueQty}
                 onChange={(e) => {
                   const value = e.target.value;
-
                   if (value === "") {
-                    setQty("");
+                    setIssueQty("");
                     return;
                   }
-
                   const num = Number(value);
-
-                  if (!Number.isFinite(num) || num < 0) {
-                    return;
-                  }
-
-                  setQty(num);
+                  if (!Number.isFinite(num) || num < 0) return;
+                  setIssueQty(num);
                 }}
                 placeholder="Enter Qty"
               />
             </div>
 
-            {/* ---------------- Add ---------------- */}
-
-            <div className="col-span-6 sm:col-span-2">
+            {/* 5. Add Button */}
+            <div className="sm:col-span-1">
               <Button
                 color="primary"
                 className="h-10 w-full gap-2 rounded-md"
                 disabled={!canAdd}
                 onClick={handleAddRow}
+                title="Add Item"
               >
-                <CheckCircleIcon className="size-4" />
-                Add
+                <PlusIcon className="size-5" />
               </Button>
             </div>
           </div>
 
           {/* ====================================================== */}
-          {/* ITEMS TABLE                                             */}
+          {/* TABLE                                                  */}
           {/* ====================================================== */}
-
           <div className="dark:border-dark-500 mt-6 overflow-x-auto rounded-lg border border-gray-200">
             <Table hoverable className="w-full text-left rtl:text-right">
               <THead>
@@ -579,15 +425,12 @@ export default function ItemRequestPage() {
                   <Th className="dark:bg-dark-800 dark:text-dark-100 bg-gray-200 text-xs font-semibold text-gray-800 uppercase">
                     Item Code
                   </Th>
-
                   <Th className="dark:bg-dark-800 dark:text-dark-100 bg-gray-200 text-xs font-semibold text-gray-800 uppercase">
                     Item Name
                   </Th>
-
                   <Th className="dark:bg-dark-800 dark:text-dark-100 bg-gray-200 text-xs font-semibold text-gray-800 uppercase">
-                    Qty
+                    Issue Qty
                   </Th>
-
                   <Th className="dark:bg-dark-800 dark:text-dark-100 bg-gray-200 text-xs font-semibold text-gray-800 uppercase">
                     Action
                   </Th>
@@ -604,13 +447,10 @@ export default function ItemRequestPage() {
                       <Td className="dark:bg-dark-700 bg-white">
                         {row.itemCode}
                       </Td>
-
                       <Td className="dark:bg-dark-700 bg-white">
                         {row.itemName}
                       </Td>
-
                       <Td className="dark:bg-dark-700 bg-white">{row.qty}</Td>
-
                       <Td className="dark:bg-dark-700 bg-white">
                         <button
                           type="button"
@@ -637,9 +477,8 @@ export default function ItemRequestPage() {
           </div>
 
           {/* ====================================================== */}
-          {/* SUBMIT                                                  */}
+          {/* SUBMIT                                                 */}
           {/* ====================================================== */}
-
           <div className="mt-6 flex justify-end">
             <Button
               color="primary"
