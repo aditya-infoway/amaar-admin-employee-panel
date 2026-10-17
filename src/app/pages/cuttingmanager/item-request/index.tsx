@@ -15,7 +15,7 @@ import {
 } from "@/components/ui";
 
 import { TrashIcon } from "@heroicons/react/24/outline";
-import { PlusIcon } from "@heroicons/react/20/solid";
+import { PlusIcon } from "@heroicons/react/20/solid"; 
 
 import { Get, Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
 
@@ -103,9 +103,7 @@ export default function ItemRequestPage() {
         if (!mounted) return;
 
         if (response?.data?.success || response?.data?.status === 200) {
-          const data = Array.isArray(response.data.data)
-            ? response.data.data
-            : [];
+          const data = Array.isArray(response.data.data) ? response.data.data : [];
           setWorkOrders(data);
         } else {
           setWorkOrders([]);
@@ -128,9 +126,7 @@ export default function ItemRequestPage() {
     };
 
     loadWorkOrders();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, []);
 
   /* ================================================================ */
@@ -146,9 +142,7 @@ export default function ItemRequestPage() {
       setSelectedItem(null);
       setIssueQty("");
       setItemLoading(false);
-      return () => {
-        mounted = false;
-      };
+      return () => { mounted = false; };
     }
 
     const loadItems = async () => {
@@ -166,9 +160,7 @@ export default function ItemRequestPage() {
         if (!mounted) return;
 
         if (response?.data?.success || response?.data?.status === 200) {
-          const data = Array.isArray(response.data.data)
-            ? response.data.data
-            : [];
+          const data = Array.isArray(response.data.data) ? response.data.data : [];
           setItems(data);
         } else {
           setItems([]);
@@ -189,9 +181,7 @@ export default function ItemRequestPage() {
     };
 
     loadItems();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [selectedWorkOrder?.id]);
 
   /* ================================================================ */
@@ -247,7 +237,7 @@ export default function ItemRequestPage() {
     };
 
     setRows((prev) => [...prev, newRow]);
-
+    
     // Reset only the item and qty fields after adding
     setSelectedItem(null);
     setIssueQty("");
@@ -297,9 +287,7 @@ export default function ItemRequestPage() {
       }
     } catch (error: any) {
       toasterrormsg(
-        error?.response?.data?.message ||
-          error?.message ||
-          "Something went wrong",
+        error?.response?.data?.message || error?.message || "Something went wrong",
       );
     } finally {
       setSubmitting(false);
@@ -311,15 +299,13 @@ export default function ItemRequestPage() {
   /* ================================================================ */
 
   const canAdd = Boolean(
-    selectedItem &&
-    issueQty !== "" &&
-    Number(issueQty) > 0 &&
-    Number(issueQty) <= (selectedItem.bomQty ?? 0),
+    selectedItem && 
+    issueQty !== "" && 
+    Number(issueQty) > 0 && 
+    Number(issueQty) <= (selectedItem.bomQty ?? 0)
   );
 
-  const canSubmit = Boolean(
-    selectedWorkOrder && rows.length > 0 && !submitting,
-  );
+  const canSubmit = Boolean(selectedWorkOrder && rows.length > 0 && !submitting);
 
   /* ================================================================ */
   /* UI                                                               */
@@ -336,7 +322,8 @@ export default function ItemRequestPage() {
           {/* ====================================================== */}
           {/* ROW: WORK ORDER + ITEM + QTY + ISSUE QTY + ADD         */}
           {/* ====================================================== */}
-          <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-12">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-12 items-end">
+            
             {/* 1. Select Work Order */}
             <div className="sm:col-span-3">
               <Combobox

@@ -383,20 +383,20 @@ export default function StartWork() {
         },
       }),
 
-      // columnHelper.display({
-      //   id: "itemProcess",
-      //   header: "Item Process",
-      //   cell: ({ row }) => (
-      //     <button
-      //       type="button"
-      //       title="Item Process"
-      //       onClick={() => openItemDrawer(row.original)}
-      //       className="dark:text-dark-200 cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
-      //     >
-      //       <EyeIcon className="mx-auto size-5" />
-      //     </button>
-      //   ),
-      // }),
+      columnHelper.display({
+             id: "itemProcess",
+             header: "Item Process",
+             cell: ({ row }) => (
+               <button
+                 type="button"
+                 title="Item Process"
+                 onClick={() => openItemDrawer(row.original)}
+                 className="dark:text-dark-200 cursor-pointer text-gray-500 hover:text-gray-700 dark:hover:text-gray-100"
+               >
+                 <EyeIcon className="size-5" />
+               </button>
+             ),
+           }),
 
       columnHelper.display({
         id: "endTime",
