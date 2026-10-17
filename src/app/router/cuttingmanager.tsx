@@ -6,6 +6,7 @@ import PendingWorkOrders from "../pages/cuttingmanager/pending-work";
 
 // ✅ Import the actual page component, NOT the navigation tree
 import StartWork from "@/app/pages/cuttingmanager/start-work"; // ← adjust path if needed
+import ItemRequestPage from "../pages/cuttingmanager/item-request";
 
 export const cuttingmanagerRoutes = [
   {
@@ -52,6 +53,20 @@ export const cuttingmanagerRoutes = [
       {
         path: "startwork",
         Component: StartWork, // ✅ real component
+      },
+    ],
+  },
+
+  {
+    path: "item-request",
+    children: [
+      {
+        index: true,
+        element: <Navigate to="itemrequestpage" replace />, // relative
+      },
+      {
+        path: "itemrequestpage",
+        Component: ItemRequestPage, // ✅ real component
       },
     ],
   },
