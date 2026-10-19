@@ -6,7 +6,8 @@ import PendingWorkOrders from "../pages/blastingmanager/pending-work";
 
 // ✅ Import the actual page component, NOT the navigation tree
 import StartWork from "@/app/pages/blastingmanager/start-work";
-import ItemRequestPage from "../pages/blastingmanager/item-request";
+import ItemRequestListPage from "../pages/blastingmanager/item-request";
+import AddItemRequestPage from "../pages/blastingmanager/item-request/AddItemRequest";
 
 export const blastingmanagerRoutes = [
   // ✅ FIX — root "/" ke liye index route add kiya, warna blank aata hai
@@ -58,16 +59,22 @@ export const blastingmanagerRoutes = [
   },
 
   {
-    path: "item-request",
-    children: [
-      {
-        index: true,
-        element: <Navigate to="itemrequestpage" replace />,
-      },
-      {
-        path: "itemrequestpage",
-        Component: ItemRequestPage,
-      },
-    ],
-  },
+     path: "item-request",
+     children: [
+       {
+         index: true,
+         element: <Navigate to="itemrequestpage" replace />,
+       },
+       {
+         // List page (table + Add button)
+         path: "itemrequestpage",
+         Component: ItemRequestListPage,
+       },
+       {
+         // Add form page
+         path: "add",
+         Component: AddItemRequestPage,
+       },
+     ],
+   },
 ];

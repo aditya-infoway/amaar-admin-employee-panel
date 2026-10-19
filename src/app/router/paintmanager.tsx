@@ -6,7 +6,8 @@ import PendingWorkOrders from "../pages/paintmanager/pending-work";
 
 // ✅ Import the actual page component, NOT the navigation tree
 import StartWork from "@/app/pages/paintmanager/start-work";
-import ItemRequestPage from "../pages/paintmanager/item-request";
+import ItemRequestListPage from "../pages/paintmanager/item-request";
+import AddItemRequestPage from "../pages/paintmanager/item-request/AddItemRequest";
 
 // enquiry
 // import Enquiry from "@/app/pages/sale-executive/lead-master/enquiry";
@@ -67,18 +68,24 @@ export const paintmanagerRoutes = [
   },
 
   {
-    path: "item-request",
-    children: [
-      {
-        index: true,
-        element: <Navigate to="itemrequestpage" replace />,
-      },
-      {
-        path: "itemrequestpage",
-        Component: ItemRequestPage,
-      },
-    ],
-  },
+     path: "item-request",
+     children: [
+       {
+         index: true,
+         element: <Navigate to="itemrequestpage" replace />,
+       },
+       {
+         // List page (table + Add button)
+         path: "itemrequestpage",
+         Component: ItemRequestListPage,
+       },
+       {
+         // Add form page
+         path: "add",
+         Component: AddItemRequestPage,
+       },
+     ],
+   },
 
   //   {
   //     path: "lead-master",

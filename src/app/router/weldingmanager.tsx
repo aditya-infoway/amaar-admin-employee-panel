@@ -6,7 +6,8 @@ import PendingWorkOrders from "../pages/weldingmanager/pending-work";
 
 // ✅ Import the actual page component, NOT the navigation tree
 import StartWork from "@/app/pages/weldingmanager/start-work";
-import ItemRequestPage from "../pages/weldingmanager/item-request";
+import ItemRequestListPage from "../pages/weldingmanager/item-request";
+import AddItemRequestPage from "../pages/weldingmanager/item-request/AddItemRequest";
 
 export const weldingmanagerRoutes = [
   // ✅ FIX — root "/" ke liye index route add kiya, warna blank aata hai
@@ -57,7 +58,7 @@ export const weldingmanagerRoutes = [
     ],
   },
 
-  {
+ {
     path: "item-request",
     children: [
       {
@@ -65,8 +66,14 @@ export const weldingmanagerRoutes = [
         element: <Navigate to="itemrequestpage" replace />,
       },
       {
+        // List page (table + Add button)
         path: "itemrequestpage",
-        Component: ItemRequestPage,
+        Component: ItemRequestListPage,
+      },
+      {
+        // Add form page
+        path: "add",
+        Component: AddItemRequestPage,
       },
     ],
   },

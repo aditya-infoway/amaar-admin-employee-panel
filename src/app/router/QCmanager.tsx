@@ -6,7 +6,8 @@ import PendingWorkOrders from "../pages/QCmanager/pending-work";
 
 // ✅ Import the actual page component, NOT the navigation tree
 import StartWork from "@/app/pages/QCmanager/start-work";
-import ItemRequestPage from "../pages/QCmanager/item-request";
+import ItemRequestListPage from "../pages/QCmanager/item-request";
+import AddItemRequestPage from "../pages/QCmanager/item-request/AddItemRequest";
 // enquiry
 // import Enquiry from "@/app/pages/sale-executive/lead-master/enquiry";
 // import Quotation from "@/app/pages/sale-executive/lead-master/quotation";
@@ -66,18 +67,24 @@ export const QCmanagerRoutes = [
   },
 
   {
-    path: "item-request",
-    children: [
-      {
-        index: true,
-        element: <Navigate to="itemrequestpage" replace />,
-      },
-      {
-        path: "itemrequestpage",
-        Component: ItemRequestPage,
-      },
-    ],
-  },
+     path: "item-request",
+     children: [
+       {
+         index: true,
+         element: <Navigate to="itemrequestpage" replace />,
+       },
+       {
+         // List page (table + Add button)
+         path: "itemrequestpage",
+         Component: ItemRequestListPage,
+       },
+       {
+         // Add form page
+         path: "add",
+         Component: AddItemRequestPage,
+       },
+     ],
+   },
   //   {
   //     path: "lead-master",
   //     children: [
