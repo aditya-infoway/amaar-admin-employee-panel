@@ -4,10 +4,12 @@ import { logout } from "./logout";
 import { settings } from "./settings";
 import { pendingWork } from "./pendingwork";
 import { startwork } from "./workorder";
+import { itemrequest } from "./itemrequest";
 export const weldingManagerNavigation = [
   dashboards,
-   pendingWork,
-   startwork,
-   settings,
+  pendingWork,
+  startwork,
+  itemrequest,
+  settings,
   logout,
 ];

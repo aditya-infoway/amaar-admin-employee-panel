@@ -2,48 +2,9 @@ export interface Category {
   id: string;
   code: string;
   categoryName: string;
-  slug: string;
-  createdAt: string;
-  status: "active" | "inactive";
+  status: string;
 }
-export interface EnquirySource {
-  id: string;
-  code: string;
-  sourceName: string;
-  slug: string;
-  createdAt: string;
-  status: "active" | "inactive";
-}
-export interface Finance {
-  id: string;
-  financeName: string;
-  slug: string;
-  createdAt: string;
-  status: "active" | "inactive";
-}
-export interface Banker {
-  id: string;
-  bankerName: string;
-  slug: string;
-  createdAt: string;
-  status: "active" | "inactive";
-}
-export interface EnquiryStatus {
-  id: string;
-  code: string;
-  statusName: string;
-  slug: string;
-  createdAt: string;
-  status: "active" | "inactive";
-}
-export interface Profession {
-  id: string;
-  code: string;
-  professionName: string;
-  slug: string;
-  createdAt: string;
-  status: "active" | "inactive";
-}
+
 export interface ProductSeries {
   id: string;
   categoryId: string;
@@ -52,7 +13,6 @@ export interface ProductSeries {
   capacity: string;
   status: string;
 }
-
 
 export interface Model {
   id: string;
@@ -69,7 +29,6 @@ export interface Model {
   status: string;
 }
 
-
 export interface Variant {
   id: string;
   categoryId: string;
@@ -84,7 +43,6 @@ export interface Variant {
   targetCost: string;
   sellingPrice: string;
 }
-
 
 export interface VariantStructure {
   id: string;
@@ -109,7 +67,6 @@ export interface VariantStructure {
   targetCost: string;
   sellingMarkup: string;
 }
-
 
 export interface ItemMaster {
   id: string;

@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router";
-import { CheckCircleIcon, ClockIcon } from "@heroicons/react/24/outline";
+
 import { Page } from "@/components/shared/Page";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { fuzzyFilter } from "@/utils/react-table/fuzzyFilter";
@@ -22,7 +22,7 @@ import {
   mapApiStockReportItemToStockReportItem,
   StockReportItem,
 } from "./data";
-import clsx from "clsx";
+
 export default function StockReportPage() {
   const navigate = useNavigate();
   const [data, setData] = useState<StockReportItem[]>([]);
@@ -34,7 +34,6 @@ export default function StockReportPage() {
   const [showFilters, setShowFilters] = useState(false);
   const [filterCategory, setFilterCategory] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
-  const [activeTab, setActiveTab] = useState<"pending" | "complete">("pending"); // ✅ naya
 
   const fetchAll = async () => {
     setLoading(true);
@@ -66,42 +65,42 @@ export default function StockReportPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ NEW — tab ke hisaab se pehle split karo
-  const tabFilteredData = useMemo(() => {
-    return data.filter((item) => {
-      const status = (item.status || "Pending").toLowerCase();
-      if (activeTab === "pending") return status !== "complete";
-      return status === "complete";
-    });
-  }, [data, activeTab]);
-
   const categoryOptions = useMemo(() => {
     const unique = Array.from(
-      new Set(tabFilteredData.map((item) => item.categoryName).filter(Boolean)),
+      new Set(data.map((item) => item.categoryName).filter(Boolean)),
     );
     return [
       { id: "", label: "All" },
       ...unique.map((name) => ({ id: name as string, label: name as string })),
     ];
-  }, [tabFilteredData]);
+  }, [data]);
 
   const groupOptions = useMemo(() => {
     const unique = Array.from(
-      new Set(tabFilteredData.map((item) => item.groupName).filter(Boolean)),
+      new Set(data.map((item) => item.groupName).filter(Boolean)),
     );
     return [
       { id: "", label: "All" },
       ...unique.map((name) => ({ id: name as string, label: name as string })),
     ];
-  }, [tabFilteredData]);
+  }, [data]);
 
   const filteredData = useMemo(() => {
-    return tabFilteredData.filter((item) => {
+    return data.filter((item) => {
       if (filterCategory && item.categoryName !== filterCategory) return false;
       if (filterGroup && item.groupName !== filterGroup) return false;
       return true;
     });
-  }, [tabFilteredData, filterCategory, filterGroup]);
+  }, [data, filterCategory, filterGroup]);
+
+  const removeLocally = (ids: Set<string>) => {
+    setData((prev) => prev.filter((item) => !ids.has(item.id)));
+  };
+
+  const handleViewRow = (row: StockReportItem) => {
+    // 👈 Add your view logic here. E.g., opening a drawer or navigating
+    navigate(`/item-request-register/${row.id}`);
+  };
 
   const table = useReactTable({
     data: filteredData,
@@ -110,8 +109,17 @@ export default function StockReportPage() {
     enableRowSelection: true,
     getRowId: (row) => row.id,
     meta: {
-      viewRow: (row: StockReportItem) =>
-        navigate(`/item-request-register/${row.id}`),
+      // ✅ Added actions just like Purchase Register
+      openEditDrawer: (row: StockReportItem) =>
+        navigate(`/item-request-register/edit/${row.id}`),
+      viewRow: handleViewRow,
+      deleteRow: (row: any) => removeLocally(new Set([row.original.id])),
+      deleteRows: (rows: any) => {
+        // ✅ Explicitly type 'r' as any so TypeScript knows 'id' exists
+        const ids = new Set<string>(rows.map((r: any) => r.original.id));
+        removeLocally(ids);
+        setRowSelection({});
+      },
     },
     filterFns: { fuzzy: fuzzyFilter },
     globalFilterFn: fuzzyFilter,
@@ -129,10 +137,12 @@ export default function StockReportPage() {
       <div className="transition-content w-full pb-5">
         <MasterToolbar
           title="Item Request Register"
+          createLabel="Create Item Request"
           searchPlaceholder="Search date, work order id, model..."
           table={table}
-          showFilters={showFilters}
+          showFilters={false}
           onToggleFilters={() => setShowFilters((v) => !v)}
+          onCreate={() => navigate("/item-request-register/create")}
           onExportExcel={() =>
             exportToExcel(filteredData, exportColumns, "stock-report")
           }
@@ -172,54 +182,13 @@ export default function StockReportPage() {
           }
         />
 
-               {/* Pending / Complete tabs – BOM/Sub BOM jaisa (exact match) */}
-        <div className="dark:border-dark-500 mt-4 mb-4 flex cursor-pointer items-center gap-6 border-b border-gray-200 px-(--margin-x)">
-          {/* Pending Tab */}
-          <button
-            type="button"
-            onClick={() => setActiveTab("pending")}
-            className={clsx(
-              "relative flex cursor-pointer items-center gap-2 pb-3 text-sm font-medium transition-colors",
-              activeTab === "pending"
-                ? "text-primary-600 dark:text-primary-400"
-                : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700",
-            )}
-          >
-            <ClockIcon className="size-4" />
-            <span>Pending</span>
-            {activeTab === "pending" && (
-              <span className="bg-primary-600 dark:bg-primary-400 absolute right-0 bottom-0 left-0 h-0.5 rounded-full" />
-            )}
-          </button>
-
-          {/* Complete Tab */}
-          <button
-            type="button"
-            onClick={() => setActiveTab("complete")}
-            className={clsx(
-              "relative flex cursor-pointer items-center gap-2 pb-3 text-sm font-medium transition-colors",
-              activeTab === "complete"
-                ? "text-primary-600 dark:text-primary-400"
-                : "dark:text-dark-300 dark:hover:text-dark-100 text-gray-500 hover:text-gray-700",
-            )}
-          >
-            <CheckCircleIcon className="size-4" />
-            <span>Complete</span>
-            {activeTab === "complete" && (
-              <span className="bg-primary-600 dark:bg-primary-400 absolute right-0 bottom-0 left-0 h-0.5 rounded-full" />
-            )}
-          </button>
-        </div>
-
         <MasterTable
           table={table}
           columnCount={columns.length}
           emptyMessage={
             loading
-              ? "Loading item request register.."
-              : activeTab === "pending"
-                ? "No pending item requests."
-                : "No completed item requests."
+              ? "Loading item request register..."
+              : "No item requests found. Click Create Item Request to add one."
           }
         />
       </div>

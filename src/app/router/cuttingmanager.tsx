@@ -4,8 +4,11 @@ import { Navigate } from "react-router";
 import Dashboard from "@/app/pages/cuttingmanager/dashboards/home/crm-analytics";
 import PendingWorkOrders from "../pages/cuttingmanager/pending-work";
 
-// ✅ Import the actual page component, NOT the navigation tree
-import StartWork from "@/app/pages/cuttingmanager/start-work"; // ← adjust path if needed
+import StartWork from "@/app/pages/cuttingmanager/start-work";
+
+// ✅ List page + Add page dono
+import ItemRequestListPage from "../pages/cuttingmanager/item-request";
+import AddItemRequestPage from "../pages/cuttingmanager/item-request/AddItemRequest";
 
 export const cuttingmanagerRoutes = [
   {
@@ -33,7 +36,7 @@ export const cuttingmanagerRoutes = [
     children: [
       {
         index: true,
-        element: <Navigate to="pending" replace />, // relative is better
+        element: <Navigate to="pending" replace />,
       },
       {
         path: "pending",
@@ -47,11 +50,31 @@ export const cuttingmanagerRoutes = [
     children: [
       {
         index: true,
-        element: <Navigate to="startwork" replace />, // relative
+        element: <Navigate to="startwork" replace />,
       },
       {
         path: "startwork",
-        Component: StartWork, // ✅ real component
+        Component: StartWork,
+      },
+    ],
+  },
+
+  {
+    path: "item-request",
+    children: [
+      {
+        index: true,
+        element: <Navigate to="itemrequestpage" replace />,
+      },
+      {
+        // List page (table + Add button)
+        path: "itemrequestpage",
+        Component: ItemRequestListPage,
+      },
+      {
+        // Add form page
+        path: "add",
+        Component: AddItemRequestPage,
       },
     ],
   },
