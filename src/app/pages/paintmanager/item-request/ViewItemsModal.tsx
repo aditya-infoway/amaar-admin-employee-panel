@@ -86,7 +86,7 @@ export function ViewItemsModal({ open, record, onClose }: Props) {
                     <Tr>
                       <Th className={thClass}>Item Code</Th>
                       <Th className={thClass}>Item Name</Th>
-                      <Th className={thClass}>Issue Qty</Th>
+                      <Th className={thClass}>Order Qty</Th>
                     </Tr>
                   </THead>
                   <TBody>

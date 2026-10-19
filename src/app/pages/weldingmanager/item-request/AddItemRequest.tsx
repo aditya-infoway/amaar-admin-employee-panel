@@ -73,7 +73,10 @@ export default function AddItemRequestPage() {
 
   /* ---------------- Request Type ---------------- */
   const [requestType, setRequestType] = useState<RequestType>("Issue");
-
+const TYPE_LABEL: Record<RequestType, string> = {
+  Issue: "Order",
+  Return: "Return",
+};
   /* ---------------- Issue ID / Issue Date ---------------- */
   const [issueDate, setIssueDate] = useState<string>(getToday());
 
@@ -98,7 +101,7 @@ export default function AddItemRequestPage() {
   /* ---------------- Submit ---------------- */
   const [submitting, setSubmitting] = useState(false);
 
-  const qtyLabel = requestType === "Return" ? "Return Qty" : "Issue Qty";
+  const qtyLabel = requestType === "Return" ? "Return Qty" : "Order  Qty";
 
   /* ================================================================ */
   /* LOAD ASSIGNED WORK ORDERS (only my assigned tasks)               */
@@ -117,12 +120,12 @@ export default function AddItemRequestPage() {
         if (res?.data?.success) {
           setIssueNo(res.data.data?.issueNo || "");
         } else {
-          toasterrormsg(res?.data?.message || "Failed to generate Issue ID.");
+          toasterrormsg(res?.data?.message || "Failed to generate Order  ID.");
         }
       } catch (err: any) {
         if (mounted) {
           toasterrormsg(
-            err?.response?.data?.message || "Failed to generate Issue ID.",
+            err?.response?.data?.message || "Failed to generate Order  ID.",
           );
         }
       }
@@ -342,7 +345,7 @@ export default function AddItemRequestPage() {
       return;
     }
     if (requestType === "Issue" && !issueDate) {
-      toasterrormsg("Please select Issue Date");
+      toasterrormsg("Please select Order  Date");
       return;
     }
     if (rows.length === 0) {
@@ -450,7 +453,7 @@ export default function AddItemRequestPage() {
                   onChange={() => handleRequestTypeChange(type)}
                   className="accent-primary-600 size-4 cursor-pointer"
                 />
-                {type}
+                              {TYPE_LABEL[type]}
               </label>
             ))}
           </div>
@@ -468,7 +471,7 @@ export default function AddItemRequestPage() {
                   placeholder="Auto"
                 /> */}
                 <Input
-                  label="Issue ID"
+                  label="Order  ID"
                   value={issueNo}
                   readOnly
                   placeholder="Auto"
@@ -477,7 +480,7 @@ export default function AddItemRequestPage() {
 
               <div className="sm:col-span-3">
                 <DatePicker
-                  label="Issue Date"
+                  label="Order  Date"
                   value={issueDate}
                   onChange={(selectedDates: Date[]) => {
                     const picked = selectedDates?.[0];

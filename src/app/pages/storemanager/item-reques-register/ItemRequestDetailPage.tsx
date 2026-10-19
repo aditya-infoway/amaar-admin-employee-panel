@@ -1,12 +1,12 @@
 import { useEffect, useState, useMemo } from "react";
 import { ChevronLeftIcon, CheckIcon } from "@heroicons/react/20/solid";
+import { TrashIcon } from "@heroicons/react/24/outline";
 import { Link, useParams, useNavigate } from "react-router";
 import { Page } from "@/components/shared/Page";
 import { Button, Input, Radio } from "@/components/ui";
 import { Listbox } from "@/components/shared/form/StyledListbox";
 import { Get, Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
-
-// Interfaces
+import { DatePicker } from "@/components/shared/form/Datepicker";
 interface ItemRow {
   id: number;
   itemId: number;
@@ -25,96 +25,250 @@ interface StagedItem extends ItemRow {
   issueQty: number;
 }
 
+interface OpenRequest {
+  itemRequestId: number;
+  requestNo: string;
+  requestType: "Issue" | "Return";
+  issueDate?: string | null;
+  workOrderId: number;
+  workOrderNo: string;
+  requesterName: string;
+  panel: string;
+}
+
 interface ItemRequestDetail {
   itemRequestId: number;
-  workOrderId: number | null;
+  requestNo?: string;
+  requestType?: string;
+  issueDate?: string | null;
   workOrderNo: string;
-  modelName: string;
-  contractorName: string;
-  contractorNumber: string;
-  status: string;
   items: ItemRow[];
 }
+
+const getToday = () => {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+};
+const formatDateForApi = (date: Date) => {
+  const mm = String(date.getMonth() + 1).padStart(2, "0");
+  const dd = String(date.getDate()).padStart(2, "0");
+  return `${date.getFullYear()}-${mm}-${dd}`;
+};
 
 export default function ItemRequestDetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
   const navigate = useNavigate();
 
-  const [data, setData] = useState<ItemRequestDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [openRequests, setOpenRequests] = useState<OpenRequest[]>([]);
+  const [detail, setDetail] = useState<ItemRequestDetail | null>(null);
   const [saving, setSaving] = useState(false);
 
-  // Form States
   const [actionType, setActionType] = useState<"issue" | "return">("issue");
-  const [selectedWorkOrder, setSelectedWorkOrder] = useState<string>("");
-  const [selectedRequest, setSelectedRequest] = useState<string>("");
+  const [selectedWorkOrderId, setSelectedWorkOrderId] = useState<string>("");
+  const [selectedRequestId, setSelectedRequestId] = useState<string>("");
   const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
   const [issueQtyInput, setIssueQtyInput] = useState<number | "">("");
-
-  // Staged Items Table
+  const [issueQtyError, setIssueQtyError] = useState("");
   const [stagedItems, setStagedItems] = useState<StagedItem[]>([]);
 
-  const [issueId] = useState(() => {
-    return `ISS-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, "0")}`;
-  });
-  const todayDate = new Date().toISOString().split("T")[0];
+  // Store Manager ka Issue ID / Date
+  const [issueNo, setIssueNo] = useState("");
+  const todayDate = getToday();
+  const [issueDate, setIssueDate] = useState<string>(getToday());
+  const fetchNextIssueNo = async (): Promise<string> => {
+    const financialYearId = localStorage.getItem("financialYearId");
+    const res = await Get(
+      "storemanager/itemrequest/next-issue-no",
+      { financialYearId },
+      false,
+    );
+    if (res?.data?.success) return res.data.data?.issueNo || "";
+    throw new Error(res?.data?.message || "Failed to generate Issue ID.");
+  };
 
+  /* ---------- Issue ID preview ---------- */
   useEffect(() => {
-    let isMounted = true;
+    fetchNextIssueNo()
+      .then(setIssueNo)
+      .catch((e) => toasterrormsg(e?.response?.data?.message || e.message));
+  }, []);
 
-    const loadData = async () => {
-      if (!itemId) return;
-
+  /* ---------- open requests load ---------- */
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
       try {
-        setLoading(true);
-        const res = await Get(`storemanager/itemRequest/${itemId}`, {}, false);
-
-        if (!isMounted) return;
-
+        const res = await Get("storemanager/itemrequest/open", {}, false);
+        if (!mounted) return;
         if (res.data?.success) {
-          setData(res.data.data);
-          if (res.data.data?.workOrderNo)
-            setSelectedWorkOrder(res.data.data.workOrderNo);
-          if (res.data.data?.itemRequestId)
-            setSelectedRequest(String(res.data.data.itemRequestId));
+          const list: OpenRequest[] = res.data.data || [];
+          setOpenRequests(list);
+
+          if (itemId) {
+            const found = list.find((r) => String(r.itemRequestId) === itemId);
+            if (found) {
+              setActionType(
+                found.requestType === "Return" ? "return" : "issue",
+              );
+              setSelectedWorkOrderId(String(found.workOrderId));
+              setSelectedRequestId(String(found.itemRequestId));
+            }
+          }
         } else {
-          toasterrormsg(res.data?.message || "Failed to load item request.");
+          toasterrormsg(res.data?.message || "Failed to load requests.");
         }
       } catch (err: any) {
-        if (!isMounted) return;
-        toasterrormsg(err?.response?.data?.message || "Something went wrong.");
-      } finally {
-        if (isMounted) setLoading(false);
+        if (mounted)
+          toasterrormsg(
+            err?.response?.data?.message || "Something went wrong.",
+          );
       }
-    };
-
-    loadData();
-
+    })();
     return () => {
-      isMounted = false;
+      mounted = false;
     };
   }, [itemId]);
 
-  const selectedItemDetails = useMemo(() => {
-    if (!selectedItemId || !data?.items) return null;
-    return data.items.find((item) => item.itemId === selectedItemId) || null;
-  }, [selectedItemId, data]);
+  /* ---------- selected request ka detail (items) ---------- */
+  useEffect(() => {
+    let mounted = true;
+    setDetail(null);
+    setSelectedItemId(null);
+    setIssueQtyInput("");
 
+    if (!selectedRequestId) return;
+
+    (async () => {
+      try {
+        const res = await Get(
+          `storemanager/itemrequest/${selectedRequestId}`,
+          {},
+          false,
+        );
+        if (!mounted) return;
+        if (res.data?.success) setDetail(res.data.data);
+        else toasterrormsg(res.data?.message || "Failed to load items.");
+      } catch (err: any) {
+        if (mounted)
+          toasterrormsg(
+            err?.response?.data?.message || "Something went wrong.",
+          );
+      }
+    })();
+
+    return () => {
+      mounted = false;
+    };
+  }, [selectedRequestId]);
+
+  /* ---------- dropdown options ---------- */
+  const typeRequests = useMemo(
+    () =>
+      openRequests.filter((r) =>
+        actionType === "return"
+          ? r.requestType === "Return"
+          : r.requestType !== "Return",
+      ),
+    [openRequests, actionType],
+  );
+
+  const workOrderOptions = useMemo(() => {
+    const map = new Map<number, string>();
+    typeRequests.forEach((r) => {
+      if (!map.has(r.workOrderId)) map.set(r.workOrderId, r.workOrderNo);
+    });
+    return Array.from(map, ([id, label]) => ({ id: String(id), label }));
+  }, [typeRequests]);
+
+  const requestOptions = useMemo(
+    () =>
+      typeRequests
+        .filter((r) => String(r.workOrderId) === selectedWorkOrderId)
+        .map((r) => ({
+          id: String(r.itemRequestId),
+          label: `${r.requestNo} | ${r.requesterName || "-"} | ${r.panel}`,
+        })),
+    [typeRequests, selectedWorkOrderId],
+  );
+
+  const itemOptions = useMemo(
+    () =>
+      detail?.items?.map((i) => ({
+        id: i.itemId,
+        label: `${i.itemCode} - ${i.itemName}`,
+      })) || [],
+    [detail],
+  );
+
+  const selectedItemDetails = useMemo(() => {
+    if (!selectedItemId || !detail?.items) return null;
+    return detail.items.find((i) => i.itemId === selectedItemId) || null;
+  }, [selectedItemId, detail]);
+
+  /* ---------- handlers ---------- */
+  const resetSelection = () => {
+    setSelectedWorkOrderId("");
+    setSelectedRequestId("");
+    setSelectedItemId(null);
+    setIssueQtyInput("");
+    setStagedItems([]);
+  };
+
+  const handleActionChange = (type: "issue" | "return") => {
+    if (type === actionType) return;
+    setActionType(type);
+    resetSelection();
+  };
+
+  const handleWorkOrderChange = (id: string) => {
+    setSelectedWorkOrderId(id);
+    setSelectedRequestId("");
+    setStagedItems([]);
+  };
+
+  const handleRequestChange = (id: string) => {
+    setSelectedRequestId(id);
+    setStagedItems([]);
+  };
+  const validateQty = (value: number | "", item: ItemRow | null) => {
+    if (value === "" || !item) return "";
+    const qty = Number(value);
+    const remaining = item.orderQty - item.issuedQty;
+    const label = actionType === "return" ? "Return Qty" : "Issue Qty";
+
+    if (qty <= 0) return `${label} must be greater than 0`;
+    if (!Number.isInteger(qty)) return `${label} must be a whole number`;
+    if (qty > remaining)
+      return `${label} cannot exceed remaining order qty (${remaining})`;
+    if (actionType === "issue" && qty > item.availableQty)
+      return `${label} cannot exceed available stock (${item.availableQty})`;
+    return "";
+  };
   const handleStageItem = () => {
     if (!selectedItemDetails) return;
     if (!issueQtyInput || Number(issueQtyInput) <= 0) {
       toasterrormsg("Please enter a valid Issue Qty");
       return;
     }
-    if (Number(issueQtyInput) > selectedItemDetails.availableQty) {
+    const remaining =
+      selectedItemDetails.orderQty - selectedItemDetails.issuedQty;
+    if (Number(issueQtyInput) > remaining) {
+      toasterrormsg(
+        `Issue Qty cannot exceed remaining order qty (${remaining})`,
+      );
+      return;
+    }
+    if (
+      actionType === "issue" &&
+      Number(issueQtyInput) > selectedItemDetails.availableQty
+    ) {
       toasterrormsg(
         `Issue Qty cannot exceed available stock (${selectedItemDetails.availableQty})`,
       );
       return;
     }
-
     if (stagedItems.some((i) => i.itemId === selectedItemDetails.itemId)) {
       toasterrormsg("Item is already staged");
       return;
@@ -124,76 +278,77 @@ export default function ItemRequestDetailPage() {
       ...prev,
       { ...selectedItemDetails, issueQty: Number(issueQtyInput) },
     ]);
-
     setSelectedItemId(null);
     setIssueQtyInput("");
+    setIssueQtyError("");
   };
 
-  const handleRemoveStaged = (itemId: number) => {
-    setStagedItems((prev) => prev.filter((i) => i.itemId !== itemId));
-  };
+  const handleRemoveStaged = (id: number) =>
+    setStagedItems((prev) => prev.filter((i) => i.itemId !== id));
 
   const handleSaveAll = async () => {
     if (stagedItems.length === 0) {
-      toasterrormsg("No items staged for issue.");
+      toasterrormsg("No items staged.");
       return;
     }
 
     setSaving(true);
     try {
+      // save ke waqt fresh Issue ID, sab rows ko same jayega
+      const freshIssueNo = await fetchNextIssueNo();
+      const financialYearId = localStorage.getItem("financialYearId");
+
       let successCount = 0;
       const failedItems: string[] = [];
 
       for (const row of stagedItems) {
         try {
           const res = await Post(
-            "storemanager/itemRequest/issue",
-            { itemRequestDetailId: row.id, qty: row.issueQty },
+            "storemanager/itemrequest/issue",
+            {
+              itemRequestDetailId: row.id,
+              qty: row.issueQty,
+              issueNo: freshIssueNo,
+              issueDate: issueDate,
+              financialYearId: financialYearId ? Number(financialYearId) : null,
+            },
             false,
           );
-          if (res.data?.success) {
-            successCount += 1;
-          } else {
-            failedItems.push(row.itemName);
-          }
+          if (res.data?.success) successCount += 1;
+          else failedItems.push(row.itemName);
         } catch {
           failedItems.push(row.itemName);
         }
       }
 
-      if (successCount > 0) {
+      if (successCount > 0)
         toastsuccessmsg(`${successCount} item(s) issued successfully`);
-      }
-      if (failedItems.length) {
+      if (failedItems.length)
         toasterrormsg(`Failed to issue: ${failedItems.join(", ")}`);
-      }
 
       setStagedItems([]);
-
-      if (successCount > 0) {
-        navigate("/item-request-register");
-      }
+      if (successCount > 0) navigate("/item-request-register");
+    } catch (e: any) {
+      toasterrormsg(
+        e?.response?.data?.message || e?.message || "Something went wrong.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const workOrderOptions = data?.workOrderNo
-    ? [{ id: data.workOrderNo, label: data.workOrderNo }]
-    : [];
-  const requestOptions = data?.itemRequestId
-    ? [{ id: String(data.itemRequestId), label: `REQ-${data.itemRequestId}` }]
-    : [];
-  const itemOptions =
-    data?.items?.map((i) => ({
-      id: i.itemId,
-      label: `${i.itemCode} - ${i.itemName}`,
-    })) || [];
+  const pick = (
+    opts: { id: any; label: string }[],
+    id: any,
+    placeholder: string,
+  ) => opts.find((o) => o.id === id) || { id: "", label: placeholder };
+
+  const labelCls =
+    "dark:text-dark-300 mb-1 block text-sm font-medium text-gray-700";
 
   return (
     <Page title="Item Request Detail">
       <div className="transition-content w-full pb-5">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-5 lg:px-6 lg:py-6">
           <h2 className="text-primary dark:text-dark-50 text-xl font-bold tracking-wide">
             Issue / Return Entry
@@ -205,14 +360,13 @@ export default function ItemRequestDetailPage() {
           </Link>
         </div>
 
-        {/* MAIN CONTAINER */}
         <div className="dark:border-dark-600 dark:bg-dark-800 mx-5 mb-6 rounded-xl border border-gray-200 bg-white p-5 lg:mx-6">
           <div className="mb-4 flex gap-4">
             <label className="flex cursor-pointer items-center gap-2">
               <Radio
                 name="actionType"
                 checked={actionType === "issue"}
-                onChange={() => setActionType("issue")}
+                onChange={() => handleActionChange("issue")}
               />
               <span className="text-sm font-medium">Issue</span>
             </label>
@@ -220,93 +374,86 @@ export default function ItemRequestDetailPage() {
               <Radio
                 name="actionType"
                 checked={actionType === "return"}
-                onChange={() => setActionType("return")}
+                onChange={() => handleActionChange("return")}
               />
               <span className="text-sm font-medium">Return</span>
             </label>
           </div>
 
-          {/* 🔴 ROW 1: 4 Columns */}
+          {/* ROW 1: Work Order + Order Request */}
+
+          {/* ROW 1b: Order ID / Order Date / Issue ID / Issue Date */}
+          {/* ROW 1: Work Order + Order Request + Issue ID + Issue Date */}
           <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <div>
-              <Listbox
-                data={[
-                  { id: "", label: "Select Work Order" },
-                  ...workOrderOptions,
-                ]}
-                value={
-                  workOrderOptions.find((o) => o.id === selectedWorkOrder) || {
-                    id: "",
-                    label: "Select Work Order",
-                  }
-                }
-                onChange={(item) => setSelectedWorkOrder(item.id)}
-                label="Select Work Order"
-                displayField="label"
-              />
-            </div>
+            <Listbox
+              data={[
+                { id: "", label: "Select Work Order" },
+                ...workOrderOptions,
+              ]}
+              value={pick(
+                workOrderOptions,
+                selectedWorkOrderId,
+                "Select Work Order",
+              )}
+              onChange={(item) => handleWorkOrderChange(item.id)}
+              label="Select Work Order"
+              displayField="label"
+            />
+
+            <Listbox
+              data={[{ id: "", label: "Order Request" }, ...requestOptions]}
+              value={pick(requestOptions, selectedRequestId, "Order Request")}
+              onChange={(item) => handleRequestChange(item.id)}
+              label="Order Request"
+              displayField="label"
+              disabled={!selectedWorkOrderId}
+            />
 
             <div>
-              <Listbox
-                data={[{ id: "", label: "Order Request" }, ...requestOptions]}
-                value={
-                  requestOptions.find((o) => o.id === selectedRequest) || {
-                    id: "",
-                    label: "Order Request",
-                  }
-                }
-                onChange={(item) => setSelectedRequest(item.id)}
-                label="Order Request"
-                displayField="label"
-              />
-            </div>
-
-            <div>
-              <label className="dark:text-dark-300 mb-1 block text-sm font-medium text-gray-700">
-                Issue ID
+              <label className={labelCls}>
+                {actionType === "return" ? "Return ID" : "Issue ID"}
               </label>
               <Input
-                value={issueId}
+                value={issueNo}
+                placeholder="Auto"
                 disabled
                 className="dark:bg-dark-700 bg-gray-50"
               />
             </div>
 
             <div>
-              <label className="dark:text-dark-300 mb-1 block text-sm font-medium text-gray-700">
-                Issue Date
-              </label>
-              <Input
-                type="date"
-                value={todayDate}
-                disabled
-                className="dark:bg-dark-700 bg-gray-50"
+              <DatePicker
+                label={actionType === "return" ? "Return Date" : "Issue Date"}
+                value={issueDate}
+                onChange={(selectedDates: Date[]) => {
+                  const picked = selectedDates?.[0];
+                  setIssueDate(picked ? formatDateForApi(picked) : "");
+                }}
+                placeholder="Select Date"
               />
             </div>
           </div>
 
-          {/* 🔴 ROW 2: 3 Columns (Select Item, Item Code, Item Name) */}
+          {/* ROW 2 */}
           <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
             <div className="md:col-span-1">
               <Listbox
                 data={[{ id: "", label: "Select Item" }, ...itemOptions]}
-                value={
-                  itemOptions.find((o) => o.id === selectedItemId) || {
-                    id: "",
-                    label: "Select Item",
-                  }
-                }
-                onChange={(item) => setSelectedItemId(Number(item.id) || null)}
+                value={pick(itemOptions, selectedItemId, "Select Item")}
+                onChange={(item) => {
+                  setSelectedItemId(Number(item.id) || null);
+                  setIssueQtyInput("");
+                  setIssueQtyError("");
+                }}
                 label="Select Item"
                 displayField="label"
+                disabled={!selectedRequestId}
               />
             </div>
-
             <div className="md:col-span-1">
               <label className="text-xs text-gray-500">Item Code</label>
               <Input value={selectedItemDetails?.itemCode || ""} disabled />
             </div>
-
             <div className="md:col-span-2">
               <label className="text-xs text-gray-500">Item Name</label>
               <Input value={selectedItemDetails?.itemName || ""} disabled />
@@ -315,8 +462,9 @@ export default function ItemRequestDetailPage() {
 
           <hr className="dark:border-dark-600 my-6 border-gray-200" />
 
-          {/* 🔴 ROW 3: 6 Columns + Check Button */}
-          <div className="flex flex-wrap items-end gap-4">
+          {/* ROW 3 */}
+          {/* ROW 3 */}
+          <div className="flex flex-wrap items-start gap-4 pb-6">
             <div className="min-w-[100px] flex-1">
               <label className="text-xs text-gray-500">HSN Code</label>
               <Input value={selectedItemDetails?.hsnCode || ""} disabled />
@@ -335,30 +483,50 @@ export default function ItemRequestDetailPage() {
             </div>
             <div className="min-w-[90px] flex-1">
               <label className="text-xs text-gray-500">Order Qty</label>
-              <Input value={selectedItemDetails?.orderQty || ""} disabled />
+              <Input value={selectedItemDetails?.orderQty ?? ""} disabled />
             </div>
-            <div className="min-w-[90px] flex-1">
-              <label className="text-primary-600 text-xs font-semibold text-gray-500">
-                Issue Qty
+
+            {/* Issue Qty: error absolute, taaki row height na badhe */}
+            <div className="relative min-w-[90px] flex-1">
+              <label className="text-primary-600 text-xs font-semibold">
+                {actionType === "return" ? "Return Qty" : "Issue Qty"}
               </label>
               <Input
                 type="number"
                 min={1}
-                max={selectedItemDetails?.availableQty}
                 value={issueQtyInput}
-                onChange={(e) =>
-                  setIssueQtyInput(e.target.value ? Number(e.target.value) : "")
-                }
+                onChange={(e) => {
+                  const value = e.target.value;
+                  if (value === "") {
+                    setIssueQtyInput("");
+                    setIssueQtyError("");
+                    return;
+                  }
+                  const num = Number(value);
+                  if (!Number.isFinite(num) || num < 0) return;
+                  setIssueQtyInput(num);
+                  setIssueQtyError(validateQty(num, selectedItemDetails));
+                }}
                 disabled={!selectedItemDetails}
-                className="border-primary-500"
+                className={
+                  issueQtyError ? "border-error-500" : "border-primary-500"
+                }
               />
+              {issueQtyError && (
+                <p className="absolute top-full left-0 mt-1 w-full text-xs leading-tight text-red-600">
+                  {issueQtyError}
+                </p>
+              )}
             </div>
 
-            <div className="pb-0.5">
+            {/* Confirm button: label ki height (approx) ke barabar top offset */}
+            <div className="pt-4">
               <Button
                 color="primary"
                 onClick={handleStageItem}
-                disabled={!selectedItemDetails || !issueQtyInput}
+                disabled={
+                  !selectedItemDetails || !issueQtyInput || !!issueQtyError
+                }
                 className="flex h-10 w-10 items-center justify-center rounded-md p-2.5"
                 title="Confirm Item"
               >
@@ -367,7 +535,7 @@ export default function ItemRequestDetailPage() {
             </div>
           </div>
 
-          {/* --- BOTTOM STAGED ITEMS SECTION --- */}
+          {/* STAGED ITEMS */}
           <div className="dark:border-dark-600 mt-8 border-t border-gray-200 pt-6">
             <h3 className="mb-3 text-lg font-semibold text-gray-800 dark:text-gray-200">
               Staged Items
@@ -377,24 +545,21 @@ export default function ItemRequestDetailPage() {
               <table className="dark:divide-dark-600 min-w-full divide-y divide-gray-200">
                 <thead className="dark:bg-dark-700 bg-gray-50">
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
-                      Item Code
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
-                      Item Name
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
-                      HSN Code
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
-                      Unit
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
-                      Location
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
-                      Qty
-                    </th>
+                    {[
+                      "Item Code",
+                      "Item Name",
+                      "HSN Code",
+                      "Unit",
+                      "Location",
+                      "Qty",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-4 py-3 text-left text-xs font-semibold uppercase"
+                      >
+                        {h}
+                      </th>
+                    ))}
                     <th className="px-4 py-3 text-center text-xs font-semibold uppercase">
                       Action
                     </th>
@@ -427,10 +592,12 @@ export default function ItemRequestDetailPage() {
                         </td>
                         <td className="px-4 py-3 text-center">
                           <button
+                            type="button"
                             onClick={() => handleRemoveStaged(row.itemId)}
-                            className="text-xs text-red-500 hover:underline"
+                            className="text-primary-600 hover:text-primary-700 cursor-pointer"
+                            title="Remove"
                           >
-                            Remove
+                            <TrashIcon className="size-5" />
                           </button>
                         </td>
                       </tr>
@@ -448,7 +615,11 @@ export default function ItemRequestDetailPage() {
                   disabled={saving}
                   className="px-8"
                 >
-                  {saving ? "Saving..." : "Save All Issued Items"}
+                  {saving
+                    ? "Saving..."
+                    : actionType === "return"
+                      ? "Save All Returned Items"
+                      : "Save All Issued Items"}
                 </Button>
               </div>
             )}
