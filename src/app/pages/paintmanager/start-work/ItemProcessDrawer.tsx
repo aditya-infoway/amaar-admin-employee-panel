@@ -44,10 +44,15 @@ export default function ItemProcessDrawer({
   const [items, setItems] = useState<StageItem[]>([]);
   const [checked, setChecked] = useState<Set<number>>(new Set());
   const [alreadyVerified, setAlreadyVerified] = useState(false);
+  // verification sirf Cutting me; baaki me items sirf view ke liye
+  const [needsVerification, setNeedsVerification] = useState(false);
   const [loading, setLoading] = useState(false);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+
+  const viewOnly = !needsVerification;
+  const colCount = needsVerification ? 8 : 7;
 
   useEffect(() => {
     if (!isOpen || !workOrderStageId) return;
@@ -59,6 +64,7 @@ export default function ItemProcessDrawer({
         setItems([]);
         setChecked(new Set());
         setAlreadyVerified(false);
+        setNeedsVerification(false);
         setSearch("");
 
         const response = await Get(
@@ -74,6 +80,7 @@ export default function ItemProcessDrawer({
 
           setItems(list);
           setAlreadyVerified(verified);
+          setNeedsVerification(Boolean(data?.needsVerification));
           setChecked(
             verified ? new Set(list.map((i) => i.bomItemId)) : new Set(),
           );
@@ -113,7 +120,7 @@ export default function ItemProcessDrawer({
   );
 
   const toggleOne = (id: number) => {
-    if (alreadyVerified) return;
+    if (alreadyVerified || viewOnly) return;
     setChecked((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -123,13 +130,14 @@ export default function ItemProcessDrawer({
   };
 
   const toggleAll = () => {
-    if (alreadyVerified) return;
+    if (alreadyVerified || viewOnly) return;
     setChecked(
       allChecked ? new Set() : new Set(items.map((i) => i.bomItemId)),
     );
   };
 
   const canSave =
+    needsVerification &&
     !alreadyVerified &&
     !loading &&
     !loadFailed &&
@@ -137,7 +145,7 @@ export default function ItemProcessDrawer({
     (items.length === 0 || allChecked);
 
   const handleSave = async () => {
-    if (!workOrderStageId) return;
+    if (!workOrderStageId || !needsVerification) return;
 
     try {
       setSaving(true);
@@ -221,31 +229,33 @@ export default function ItemProcessDrawer({
                     placeholder="Search item code, name, category..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="dark:border-dark-500 dark:bg-dark-600 w-full rounded-lg border border-gray-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500"
+                    className="dark:border-dark-500 dark:bg-dark-600 focus:border-primary-500 focus:ring-primary-500 w-full rounded-lg border border-gray-200 bg-white py-2 pr-3 pl-9 text-sm outline-none focus:ring-1"
                   />
                 </div>
 
-                <div className="flex items-center gap-4">
-                  <button
-                    type="button"
-                    onClick={toggleAll}
-                    disabled={alreadyVerified || items.length === 0}
-                    className="text-sm font-medium text-primary-600 hover:underline disabled:cursor-not-allowed disabled:opacity-50 dark:text-primary-400"
-                  >
-                    {allChecked ? "Unverify All" : "Verify All"}
-                  </button>
+                {needsVerification && (
+                  <div className="flex items-center gap-4">
+                    <button
+                      type="button"
+                      onClick={toggleAll}
+                      disabled={alreadyVerified || items.length === 0}
+                      className="text-primary-600 dark:text-primary-400 text-sm font-medium hover:underline disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      {allChecked ? "Unverify All" : "Verify All"}
+                    </button>
 
-                  <span className="text-xs text-gray-400">
-                    {checked.size} / {items.length} verified
-                  </span>
-                </div>
+                    <span className="text-xs text-gray-400">
+                      {checked.size} / {items.length} verified
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Table */}
               <div className="dark:border-dark-500 overflow-hidden rounded-lg border border-gray-200 dark:border-gray-600">
                 <div className="max-h-[min(60vh,520px)] overflow-y-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="sticky top-0 z-10 bg-gray-50 dark:bg-dark-600">
+                    <thead className="dark:bg-dark-600 sticky top-0 z-10 bg-gray-50">
                       <tr className="border-b border-gray-200 text-xs tracking-wide text-gray-500 uppercase dark:border-gray-600">
                         <th className="px-4 py-3">Sr. No.</th>
                         <th className="px-4 py-3">Item Code</th>
@@ -254,7 +264,9 @@ export default function ItemProcessDrawer({
                         <th className="px-4 py-3">Category</th>
                         <th className="px-4 py-3">Unit</th>
                         <th className="px-4 py-3">Qty</th>
-                        <th className="px-4 py-3 text-center">Verify</th>
+                        {needsVerification && (
+                          <th className="px-4 py-3 text-center">Verify</th>
+                        )}
                       </tr>
                     </thead>
 
@@ -262,7 +274,7 @@ export default function ItemProcessDrawer({
                       {loading ? (
                         <tr>
                           <td
-                            colSpan={8}
+                            colSpan={colCount}
                             className="px-4 py-10 text-center text-gray-400"
                           >
                             Loading...
@@ -271,7 +283,7 @@ export default function ItemProcessDrawer({
                       ) : filteredItems.length === 0 ? (
                         <tr>
                           <td
-                            colSpan={8}
+                            colSpan={colCount}
                             className="px-4 py-10 text-center text-gray-400"
                           >
                             {items.length === 0
@@ -300,29 +312,31 @@ export default function ItemProcessDrawer({
                               <td className="px-4 py-3">
                                 {item.category || "-"}
                               </td>
-                              <td className="px-4 py-3">
-                                {item.unit || "-"}
-                              </td>
+                              <td className="px-4 py-3">{item.unit || "-"}</td>
                               <td className="px-4 py-3">
                                 {item.quantity || "-"}
                               </td>
-                              <td className="px-4 py-3 text-center">
-                                <button
-                                  type="button"
-                                  onClick={() => toggleOne(item.bomItemId)}
-                                  disabled={alreadyVerified}
-                                  className={`inline-flex size-8 items-center justify-center rounded-full transition-colors ${
-                                    isChecked
-                                      ? "bg-emerald-500 text-white"
-                                      : "bg-gray-100 text-gray-400 hover:bg-gray-200 dark:bg-dark-500 dark:hover:bg-dark-400"
-                                  } disabled:cursor-not-allowed disabled:opacity-60`}
-                                  title={
-                                    isChecked ? "Verified" : "Mark as verified"
-                                  }
-                                >
-                                  <CheckIcon className="size-4" />
-                                </button>
-                              </td>
+                              {needsVerification && (
+                                <td className="px-4 py-3 text-center">
+                                  <button
+                                    type="button"
+                                    onClick={() => toggleOne(item.bomItemId)}
+                                    disabled={alreadyVerified}
+                                    className={`inline-flex size-8 items-center justify-center rounded-full transition-colors ${
+                                      isChecked
+                                        ? "bg-emerald-500 text-white"
+                                        : "dark:bg-dark-500 dark:hover:bg-dark-400 bg-gray-100 text-gray-400 hover:bg-gray-200"
+                                    } disabled:cursor-not-allowed disabled:opacity-60`}
+                                    title={
+                                      isChecked
+                                        ? "Verified"
+                                        : "Mark as verified"
+                                    }
+                                  >
+                                    <CheckIcon className="size-4" />
+                                  </button>
+                                </td>
+                              )}
                             </tr>
                           );
                         })
@@ -336,15 +350,15 @@ export default function ItemProcessDrawer({
             {/* Footer */}
             <div className="dark:border-dark-500 mt-auto flex items-center justify-between gap-3 border-t border-gray-200 px-4 py-4 sm:px-6">
               <span className="text-sm text-emerald-500">
-                {alreadyVerified ? "Items verified" : ""}
+                {needsVerification && alreadyVerified ? "Items verified" : ""}
               </span>
 
               <div className="flex gap-3">
                 <Button type="button" onClick={close}>
-                  {alreadyVerified ? "Close" : "Cancel"}
+                  {alreadyVerified || viewOnly ? "Close" : "Cancel"}
                 </Button>
 
-                {!alreadyVerified && (
+                {needsVerification && !alreadyVerified && (
                   <Button
                     type="button"
                     color="primary"

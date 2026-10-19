@@ -1,4 +1,5 @@
 import { dashboards } from "./dashboards";
+import { itemrequest } from "./itemrequest";
 import { logout } from "./logout";
 import { pendingWork } from "./pendingwork";
 // ya jahan se bhi ye export ho raha hai
@@ -8,6 +9,7 @@ export const cuttingManagerNavigation = [
   dashboards,
   pendingWork,
   startwork,
+  itemrequest,
   settings,
   logout,
 ];

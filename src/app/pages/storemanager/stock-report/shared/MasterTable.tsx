@@ -1,7 +1,4 @@
-import {
-  flexRender,
-  Table as TanstackTable,
-} from "@tanstack/react-table";
+import { flexRender, Table as TanstackTable } from "@tanstack/react-table";
 import clsx from "clsx";
 
 import { PaginationSection } from "@/components/shared/table/PaginationSection";
@@ -32,35 +29,64 @@ export function MasterTable<T>({
             <THead>
               {table.getHeaderGroups().map((headerGroup) => (
                 <Tr key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => (
-                    <Th
-                      key={header.id}
-                      className="dark:bg-dark-800 dark:text-dark-100 bg-gray-200 font-semibold text-gray-800 uppercase first:ltr:rounded-tl-lg last:ltr:rounded-tr-lg"
-                    >
-                      {header.column.getCanSort() ? (
-                        <div
-                          className="flex cursor-pointer items-center gap-3 select-none"
-                          onClick={header.column.getToggleSortingHandler()}
-                        >
-                          <span>
-                            {flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
+                  {headerGroup.headers.map((header) => {
+                    // a top-level column in a lower header row is already drawn
+                    // by its placeholder in the top row (with rowSpan), so skip it
+                    if (
+                      !header.isPlaceholder &&
+                      headerGroup.depth > 0 &&
+                      header.column.depth === 0
+                    )
+                      return null;
+
+                    const rowSpan = header.isPlaceholder
+                      ? table.getHeaderGroups().length - headerGroup.depth
+                      : 1;
+
+                    const centered =
+                      header.colSpan > 1 || header.column.depth > 0;
+
+                    return (
+                      <Th
+                        key={header.id}
+                        colSpan={header.colSpan}
+                        rowSpan={rowSpan}
+                        className={clsx(
+                          "dark:bg-dark-800 dark:text-dark-100 bg-gray-200 font-semibold text-gray-800 uppercase first:ltr:rounded-tl-lg last:ltr:rounded-tr-lg",
+                          centered && "text-center",
+                        )}
+                      >
+                        {header.column.getCanSort() ? (
+                          <div
+                            className={clsx(
+                              "flex cursor-pointer items-center gap-3 select-none",
+                              centered && "justify-center",
                             )}
-                          </span>
-                          <TableSortIcon sorted={header.column.getIsSorted()} />
-                        </div>
-                      ) : (
-                        flexRender(
-                          header.column.columnDef.header,
-                          header.getContext(),
-                        )
-                      )}
-                    </Th>
-                  ))}
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            <span>
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                            </span>
+                            <TableSortIcon
+                              sorted={header.column.getIsSorted()}
+                            />
+                          </div>
+                        ) : (
+                          flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )
+                        )}
+                      </Th>
+                    );
+                  })}
                 </Tr>
               ))}
             </THead>
+
             <TBody>
               {table.getRowModel().rows.length > 0 ? (
                 table.getRowModel().rows.map((row) => (
@@ -105,7 +131,7 @@ export function MasterTable<T>({
         </div>
 
         {table.getRowModel().rows.length > 0 && (
-          <div className="px-4 pb-4 pt-4 sm:px-5">
+          <div className="px-4 pt-4 pb-4 sm:px-5">
             <PaginationSection table={table} />
           </div>
         )}

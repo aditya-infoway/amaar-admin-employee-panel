@@ -13,10 +13,10 @@ import { Button, Input } from "@/components/ui";
 
 interface MasterToolbarProps<T> {
   title: string;
+  createLabel: string;
   searchPlaceholder: string;
   table: Table<T>;
-  onCreate?: () => void;
-  createLabel?: string;
+  onCreate: () => void;
   showFilters: boolean;
   onToggleFilters: () => void;
   onExportExcel: () => void;
@@ -26,15 +26,15 @@ interface MasterToolbarProps<T> {
 
 export function MasterToolbar<T>({
   title,
+  createLabel,
   searchPlaceholder,
   table,
+  onCreate,
   showFilters,
   onToggleFilters,
   onExportExcel,
   onExportPdf,
   filterPanel,
-  onCreate,
-  createLabel,
 }: MasterToolbarProps<T>) {
   return (
     <div className="table-toolbar px-(--margin-x) pt-4">
@@ -43,17 +43,6 @@ export function MasterToolbar<T>({
           {title}
         </h2>
         <div className="flex flex-wrap items-center gap-2">
-          {/* ✅ NEW — sirf tab render hoga jab onCreate diya gaya ho */}
-          {onCreate && (
-            <Button
-              color="primary"
-              className="h-9 gap-2 rounded-md px-3 text-sm"
-              onClick={onCreate}
-            >
-              <PlusIcon className="size-4" />
-              <span>{createLabel || "Create"}</span>
-            </Button>
-          )}
           <Button
             variant="outlined"
             className="h-9 gap-2 rounded-md px-3 text-sm"
@@ -79,6 +68,14 @@ export function MasterToolbar<T>({
           >
             <DocumentArrowDownIcon className="size-4 text-error-600" />
             <span>PDF</span>
+          </Button>
+          <Button
+            color="primary"
+            className="h-9 gap-2 rounded-md px-4 text-sm"
+            onClick={onCreate}
+          >
+            <PlusIcon className="size-4" />
+            <span>{createLabel}</span>
           </Button>
         </div>
       </div>
