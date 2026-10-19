@@ -3,27 +3,29 @@ export interface StockReportItem {
   date: string;
   contractorName: string;
   workOrderId: string;
-  model: string;
+  issueId: string; // ✅ Added
   categoryName: string;
   groupName: string;
   taxSlab: string;
   currentStock: string;
   itemLocation: string;
-  status: string; // ✅ naya
+  status: string;
 }
 
-export const mapApiStockReportItemToStockReportItem = (item: any): StockReportItem => ({
+export const mapApiStockReportItemToStockReportItem = (
+  item: any,
+): StockReportItem => ({
   id: String(item.itemRequestId ?? item.id ?? ""),
   date: item.date ?? item.created ?? "",
   contractorName: item.contractorName ?? "",
   workOrderId: item.workOrderId ?? "",
-  model: item.model ?? "",
+  issueId: item.issueId ?? String(item.itemRequestId ?? ""), // ✅ Added mapping
   categoryName: item.categoryName ?? "",
   groupName: item.groupName ?? "",
   taxSlab: item.taxSlab ?? "0",
   currentStock: item.currentStock ?? "0",
   itemLocation: item.itemLocation ?? "",
-  status: item.status ?? "Pending", // ✅ naya
+  status: item.status ?? "Pending",
 });
 
 export interface StockReportDetailRow {

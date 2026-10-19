@@ -3,7 +3,6 @@ export type ExportColumn<T> = {
   header: string;
   format?: (value: unknown, row: T) => string;
 };
-
 export function exportToExcel<T extends object>(
   rows: T[],
   columns: ExportColumn<T>[],

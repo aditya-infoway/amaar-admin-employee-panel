@@ -1,21 +1,28 @@
-import { useEffect, useState } from "react";
-import { ChevronLeftIcon } from "@heroicons/react/20/solid";
-import { CheckIcon, ClockIcon } from "@heroicons/react/24/outline";
-import { Link, useParams,useNavigate } from "react-router";
+import { useEffect, useState, useMemo } from "react";
+import { ChevronLeftIcon, CheckIcon } from "@heroicons/react/20/solid";
+import { Link, useParams, useNavigate } from "react-router";
 import { Page } from "@/components/shared/Page";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, Radio } from "@/components/ui";
+import { Listbox } from "@/components/shared/form/StyledListbox";
 import { Get, Post, toasterrormsg, toastsuccessmsg } from "@/ApiHelper";
 
+// Interfaces
 interface ItemRow {
   id: number;
   itemId: number;
   itemCode: string;
   itemName: string;
+  hsnCode: string;
+  unit: string;
+  itemLocation: string;
+  itemCategory: string;
   orderQty: number;
   issuedQty: number;
   availableQty: number;
-  itemLocation: string;
-  unit: string;
+}
+
+interface StagedItem extends ItemRow {
+  issueQty: number;
 }
 
 interface ItemRequestDetail {
@@ -31,301 +38,421 @@ interface ItemRequestDetail {
 
 export default function ItemRequestDetailPage() {
   const { itemId } = useParams<{ itemId: string }>();
+  const navigate = useNavigate();
+
   const [data, setData] = useState<ItemRequestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [issueQty, setIssueQty] = useState<Record<number, number>>({});
-  // ✅ NEW — jo rows "Issue" click ho chuki hain lekin abhi backend save nahi hui
-  const [stagedIds, setStagedIds] = useState<Set<number>>(new Set());
-const navigate = useNavigate(); // ✅ NEW
- const fetchData = async () => {
-  if (!itemId) return;
-  setLoading(true);
-  try {
-    const res = await Get(`storemanager/itemRequest/${itemId}`, {}, false);
-    if (res.data?.success) {
-      setData(res.data.data);
 
-      // ✅ NEW — jo items already issue ho chuke hain, unki qty input me bhar do
-      const initialQty: Record<number, number> = {};
-      (res.data.data?.items || []).forEach((row: ItemRow) => {
-        if ((row.issuedQty ?? 0) > 0) {
-          initialQty[row.id] = row.issuedQty;
-        }
-      });
-      setIssueQty(initialQty);
-    } else {
-      toasterrormsg(res.data?.message || "Failed to load item request.");
-    }
-  } catch (err: any) {
-    toasterrormsg(
-      err?.response?.data?.message ||
-        "Something went wrong while loading item request.",
-    );
-  } finally {
-    setLoading(false);
-  }
-};
+  // Form States
+  const [actionType, setActionType] = useState<"issue" | "return">("issue");
+  const [selectedWorkOrder, setSelectedWorkOrder] = useState<string>("");
+  const [selectedRequest, setSelectedRequest] = useState<string>("");
+  const [selectedItemId, setSelectedItemId] = useState<number | null>(null);
+  const [issueQtyInput, setIssueQtyInput] = useState<number | "">("");
+
+  // Staged Items Table
+  const [stagedItems, setStagedItems] = useState<StagedItem[]>([]);
+
+  const [issueId] = useState(() => {
+    return `ISS-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000)
+      .toString()
+      .padStart(3, "0")}`;
+  });
+  const todayDate = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
-    fetchData();
+    let isMounted = true;
+
+    const loadData = async () => {
+      if (!itemId) return;
+
+      try {
+        setLoading(true);
+        const res = await Get(`storemanager/itemRequest/${itemId}`, {}, false);
+
+        if (!isMounted) return;
+
+        if (res.data?.success) {
+          setData(res.data.data);
+          if (res.data.data?.workOrderNo)
+            setSelectedWorkOrder(res.data.data.workOrderNo);
+          if (res.data.data?.itemRequestId)
+            setSelectedRequest(String(res.data.data.itemRequestId));
+        } else {
+          toasterrormsg(res.data?.message || "Failed to load item request.");
+        }
+      } catch (err: any) {
+        if (!isMounted) return;
+        toasterrormsg(err?.response?.data?.message || "Something went wrong.");
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    loadData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [itemId]);
 
-  const handleIssueQtyChange = (rowId: number, value: string) => {
-    setIssueQty((prev) => ({ ...prev, [rowId]: Number(value) || 0 }));
-  };
+  const selectedItemDetails = useMemo(() => {
+    if (!selectedItemId || !data?.items) return null;
+    return data.items.find((item) => item.itemId === selectedItemId) || null;
+  }, [selectedItemId, data]);
 
-  const validateRow = (row: ItemRow): string | null => {
-    const qty = issueQty[row.id] ?? 0;
-    if (qty <= 0) return "Please enter an issue quantity";
-    if (qty > row.orderQty)
-      return `Issue quantity cannot exceed the ordered quantity (${row.orderQty})`;
-    if (qty > row.availableQty)
-      return `Issue quantity cannot exceed the available stock (${row.availableQty})`;
-    return null;
-  };
-
-  // ✅ CHANGED — ab ye API call nahi karta, sirf row ko "staged" mark karta hai
-  const handleIssue = (row: ItemRow) => {
-    if ((row.issuedQty ?? 0) > 0) {
-      toasterrormsg("This item has already been issued");
+  const handleStageItem = () => {
+    if (!selectedItemDetails) return;
+    if (!issueQtyInput || Number(issueQtyInput) <= 0) {
+      toasterrormsg("Please enter a valid Issue Qty");
+      return;
+    }
+    if (Number(issueQtyInput) > selectedItemDetails.availableQty) {
+      toasterrormsg(
+        `Issue Qty cannot exceed available stock (${selectedItemDetails.availableQty})`,
+      );
       return;
     }
 
-    const error = validateRow(row);
-    if (error) {
-      toasterrormsg(error);
+    if (stagedItems.some((i) => i.itemId === selectedItemDetails.itemId)) {
+      toasterrormsg("Item is already staged");
       return;
     }
 
-    setStagedIds((prev) => new Set(prev).add(row.id));
+    setStagedItems((prev) => [
+      ...prev,
+      { ...selectedItemDetails, issueQty: Number(issueQtyInput) },
+    ]);
+
+    setSelectedItemId(null);
+    setIssueQtyInput("");
   };
 
-  // ✅ Save button — sirf staged rows ko backend mein save karta hai
- const handleSaveAll = async () => {
-  if (!data?.items?.length) return;
+  const handleRemoveStaged = (itemId: number) => {
+    setStagedItems((prev) => prev.filter((i) => i.itemId !== itemId));
+  };
 
-  const rowsToIssue = data.items.filter((row) => stagedIds.has(row.id));
+  const handleSaveAll = async () => {
+    if (stagedItems.length === 0) {
+      toasterrormsg("No items staged for issue.");
+      return;
+    }
 
-  if (!rowsToIssue.length) {
-    toasterrormsg("Please mark at least one item as Issue before saving");
-    return;
-  }
+    setSaving(true);
+    try {
+      let successCount = 0;
+      const failedItems: string[] = [];
 
-  setSaving(true);
-  try {
-    let successCount = 0;
-    const failedItems: string[] = [];
-
-    for (const row of rowsToIssue) {
-      const qty = issueQty[row.id] ?? 0;
-      try {
-        const res = await Post(
-          "storemanager/itemRequest/issue",
-          {
-            itemRequestDetailId: row.id,
-            qty,
-          },
-          false,
-        );
-        if (res.data?.success) {
-          successCount += 1;
-        } else {
+      for (const row of stagedItems) {
+        try {
+          const res = await Post(
+            "storemanager/itemRequest/issue",
+            { itemRequestDetailId: row.id, qty: row.issueQty },
+            false,
+          );
+          if (res.data?.success) {
+            successCount += 1;
+          } else {
+            failedItems.push(row.itemName);
+          }
+        } catch {
           failedItems.push(row.itemName);
         }
-      } catch {
-        failedItems.push(row.itemName);
       }
-    }
 
-    if (successCount > 0) {
-      toastsuccessmsg(`${successCount} item(s) issued successfully`);
-    }
-    if (failedItems.length) {
-      toasterrormsg(`Failed to issue: ${failedItems.join(", ")}`);
-    }
+      if (successCount > 0) {
+        toastsuccessmsg(`${successCount} item(s) issued successfully`);
+      }
+      if (failedItems.length) {
+        toasterrormsg(`Failed to issue: ${failedItems.join(", ")}`);
+      }
 
-    setIssueQty({});
-    setStagedIds(new Set());
+      setStagedItems([]);
 
-    // ✅ CHANGED — refetch ki jagah ab list page pe navigate
-    if (successCount > 0) {
-      navigate("/item-request-register");
-    } else {
-      fetchData(); // sab fail ho gaye to yahi rukke, data refresh kar do
+      if (successCount > 0) {
+        navigate("/item-request-register");
+      }
+    } finally {
+      setSaving(false);
     }
-  } finally {
-    setSaving(false);
-  }
-};
+  };
+
+  const workOrderOptions = data?.workOrderNo
+    ? [{ id: data.workOrderNo, label: data.workOrderNo }]
+    : [];
+  const requestOptions = data?.itemRequestId
+    ? [{ id: String(data.itemRequestId), label: `REQ-${data.itemRequestId}` }]
+    : [];
+  const itemOptions =
+    data?.items?.map((i) => ({
+      id: i.itemId,
+      label: `${i.itemCode} - ${i.itemName}`,
+    })) || [];
 
   return (
     <Page title="Item Request Detail">
       <div className="transition-content w-full pb-5">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-5 lg:px-6 lg:py-6">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="text-primary dark:text-dark-50 text-xl font-bold tracking-wide">
-              Item Request Detail -
-            </h2>
-            {(data?.workOrderNo || data?.modelName) && (
-              <span className="dark:text-dark-300 text-lg text-gray-500">
-                {data?.workOrderNo && (
-                  <span className="text-primary dark:text-primary-400 font-semibold">
-                    {data.workOrderNo}
-                  </span>
-                )}
-                {data?.workOrderNo && data?.modelName && (
-                  <span className="mx-1">•</span>
-                )}
-                {data?.modelName && (
-                  <span className="text-primary dark:text-primary-400 font-semibold">
-                    {data.modelName}
-                  </span>
-                )}
-              </span>
-            )}
-          </div>
+          <h2 className="text-primary dark:text-dark-50 text-xl font-bold tracking-wide">
+            Issue / Return Entry
+          </h2>
           <Link to="/item-request-register">
             <Button color="primary" variant="outlined" className="gap-1">
-              <ChevronLeftIcon className="size-5" />
-              Back
+              <ChevronLeftIcon className="size-5" /> Back
             </Button>
           </Link>
         </div>
 
-        {/* Items Table */}
-        <div className="mt-6 px-5 lg:px-6">
-          <div className="dark:border-dark-600 overflow-hidden rounded-xl border border-gray-200">
-            <table className="dark:divide-dark-600 min-w-full divide-y divide-gray-200">
-              <thead className="dark:bg-dark-700 bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase">
-                    Item Code
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase">
-                    Item Name
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase">
-                    Order Qty
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase">
-                    Available Qty
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase">
-                    Item Location
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold tracking-wider text-gray-600 uppercase">
-                    Issue Qty
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-semibold tracking-wider text-gray-600 uppercase">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="dark:divide-dark-600 dark:bg-dark-800 divide-y divide-gray-200 bg-white">
-                {loading ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-8 text-center text-gray-500"
-                    >
-                      Loading...
-                    </td>
-                  </tr>
-                ) : !data?.items?.length ? (
-                  <tr>
-                    <td
-                      colSpan={7}
-                      className="px-4 py-8 text-center text-gray-500"
-                    >
-                      No items found.
-                    </td>
-                  </tr>
-                ) : (
-                  data.items.map((row) => {
-                    const isIssued = (row.issuedQty ?? 0) > 0; 
-                    const isStaged = stagedIds.has(row.id) && !isIssued; 
-
-                    return (
-                      <tr key={row.id}>
-                        <td className="px-4 py-3 text-sm whitespace-nowrap">
-                          {row.itemCode}
-                        </td>
-                        <td className="px-4 py-3 text-sm whitespace-nowrap">
-                          {row.itemName}
-                        </td>
-                        <td className="px-4 py-3 text-left text-sm whitespace-nowrap">
-                          {row.orderQty}
-                        </td>
-                        <td className="px-4 py-3 text-left text-sm whitespace-nowrap">
-                          {row.availableQty}
-                        </td>
-                        <td className="px-4 py-3 text-sm whitespace-nowrap">
-                          {row.itemLocation || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-left text-sm whitespace-nowrap">
-                          <Input
-                            type="number"
-                            min={0}
-                            value={issueQty[row.id] ?? ""}
-                            onChange={(e) =>
-                              handleIssueQtyChange(row.id, e.target.value)
-                            }
-                            className="w-20 text-right"
-                            disabled={isIssued || isStaged}
-                          />
-                        </td>
-                        <td className="px-4 py-3 text-center whitespace-nowrap">
-                          {isIssued ? (
-                            <span
-                              className="inline-flex size-8 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-400"
-                              title="Issued"
-                            >
-                              <CheckIcon className="size-5" />
-                            </span>
-                          ) : isStaged ? (
-                            // ✅ NEW — staged state: save hone ka wait, abhi backend mein nahi gaya
-                            <span
-                              className="inline-flex size-8 items-center justify-center rounded-full bg-amber-100 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400"
-                              title="Pending save"
-                            >
-                              <ClockIcon className="size-5" />
-                            </span>
-                          ) : (
-                            <Button
-                              color="primary"
-                              onClick={() => handleIssue(row)}
-                            >
-                              Issue
-                            </Button>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+        {/* MAIN CONTAINER */}
+        <div className="dark:border-dark-600 dark:bg-dark-800 mx-5 mb-6 rounded-xl border border-gray-200 bg-white p-5 lg:mx-6">
+          <div className="mb-4 flex gap-4">
+            <label className="flex cursor-pointer items-center gap-2">
+              <Radio
+                name="actionType"
+                checked={actionType === "issue"}
+                onChange={() => setActionType("issue")}
+              />
+              <span className="text-sm font-medium">Issue</span>
+            </label>
+            <label className="flex cursor-pointer items-center gap-2">
+              <Radio
+                name="actionType"
+                checked={actionType === "return"}
+                onChange={() => setActionType("return")}
+              />
+              <span className="text-sm font-medium">Return</span>
+            </label>
           </div>
 
-          {/* ✅ Bottom-right Save button — staged rows ko backend mein commit karta hai */}
-                   {/* ✅ Bottom-right Save button — staged rows ko backend mein commit karta hai */}
-          {!loading && data?.items?.length ? (
-            <div className="mt-4 flex justify-end">
+          {/* 🔴 ROW 1: 4 Columns */}
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <div>
+              <Listbox
+                data={[
+                  { id: "", label: "Select Work Order" },
+                  ...workOrderOptions,
+                ]}
+                value={
+                  workOrderOptions.find((o) => o.id === selectedWorkOrder) || {
+                    id: "",
+                    label: "Select Work Order",
+                  }
+                }
+                onChange={(item) => setSelectedWorkOrder(item.id)}
+                label="Select Work Order"
+                displayField="label"
+              />
+            </div>
+
+            <div>
+              <Listbox
+                data={[{ id: "", label: "Order Request" }, ...requestOptions]}
+                value={
+                  requestOptions.find((o) => o.id === selectedRequest) || {
+                    id: "",
+                    label: "Order Request",
+                  }
+                }
+                onChange={(item) => setSelectedRequest(item.id)}
+                label="Order Request"
+                displayField="label"
+              />
+            </div>
+
+            <div>
+              <label className="dark:text-dark-300 mb-1 block text-sm font-medium text-gray-700">
+                Issue ID
+              </label>
+              <Input
+                value={issueId}
+                disabled
+                className="dark:bg-dark-700 bg-gray-50"
+              />
+            </div>
+
+            <div>
+              <label className="dark:text-dark-300 mb-1 block text-sm font-medium text-gray-700">
+                Issue Date
+              </label>
+              <Input
+                type="date"
+                value={todayDate}
+                disabled
+                className="dark:bg-dark-700 bg-gray-50"
+              />
+            </div>
+          </div>
+
+          {/* 🔴 ROW 2: 3 Columns (Select Item, Item Code, Item Name) */}
+          <div className="mb-6 grid grid-cols-1 gap-4 md:grid-cols-4">
+            <div className="md:col-span-1">
+              <Listbox
+                data={[{ id: "", label: "Select Item" }, ...itemOptions]}
+                value={
+                  itemOptions.find((o) => o.id === selectedItemId) || {
+                    id: "",
+                    label: "Select Item",
+                  }
+                }
+                onChange={(item) => setSelectedItemId(Number(item.id) || null)}
+                label="Select Item"
+                displayField="label"
+              />
+            </div>
+
+            <div className="md:col-span-1">
+              <label className="text-xs text-gray-500">Item Code</label>
+              <Input value={selectedItemDetails?.itemCode || ""} disabled />
+            </div>
+
+            <div className="md:col-span-2">
+              <label className="text-xs text-gray-500">Item Name</label>
+              <Input value={selectedItemDetails?.itemName || ""} disabled />
+            </div>
+          </div>
+
+          <hr className="dark:border-dark-600 my-6 border-gray-200" />
+
+          {/* 🔴 ROW 3: 6 Columns + Check Button */}
+          <div className="flex flex-wrap items-end gap-4">
+            <div className="min-w-[100px] flex-1">
+              <label className="text-xs text-gray-500">HSN Code</label>
+              <Input value={selectedItemDetails?.hsnCode || ""} disabled />
+            </div>
+            <div className="min-w-[80px] flex-1">
+              <label className="text-xs text-gray-500">Unit</label>
+              <Input value={selectedItemDetails?.unit || ""} disabled />
+            </div>
+            <div className="min-w-[120px] flex-1">
+              <label className="text-xs text-gray-500">Item Location</label>
+              <Input value={selectedItemDetails?.itemLocation || ""} disabled />
+            </div>
+            <div className="min-w-[120px] flex-1">
+              <label className="text-xs text-gray-500">Item Category</label>
+              <Input value={selectedItemDetails?.itemCategory || ""} disabled />
+            </div>
+            <div className="min-w-[90px] flex-1">
+              <label className="text-xs text-gray-500">Order Qty</label>
+              <Input value={selectedItemDetails?.orderQty || ""} disabled />
+            </div>
+            <div className="min-w-[90px] flex-1">
+              <label className="text-primary-600 text-xs font-semibold text-gray-500">
+                Issue Qty
+              </label>
+              <Input
+                type="number"
+                min={1}
+                max={selectedItemDetails?.availableQty}
+                value={issueQtyInput}
+                onChange={(e) =>
+                  setIssueQtyInput(e.target.value ? Number(e.target.value) : "")
+                }
+                disabled={!selectedItemDetails}
+                className="border-primary-500"
+              />
+            </div>
+
+            <div className="pb-0.5">
               <Button
                 color="primary"
-                onClick={handleSaveAll}
-                disabled={saving || (data?.status || "").toLowerCase() === "complete"}
+                onClick={handleStageItem}
+                disabled={!selectedItemDetails || !issueQtyInput}
+                className="flex h-10 w-10 items-center justify-center rounded-md p-2.5"
+                title="Confirm Item"
               >
-                {(data?.status || "").toLowerCase() === "complete"
-                  ? "Completed"
-                  : saving
-                    ? "Saving..."
-                    : "Save"}
+                <CheckIcon className="size-5" />
               </Button>
             </div>
-          ) : null}
+          </div>
+
+          {/* --- BOTTOM STAGED ITEMS SECTION --- */}
+          <div className="dark:border-dark-600 mt-8 border-t border-gray-200 pt-6">
+            <h3 className="mb-3 text-lg font-semibold text-gray-800 dark:text-gray-200">
+              Staged Items
+            </h3>
+
+            <div className="overflow-x-auto">
+              <table className="dark:divide-dark-600 min-w-full divide-y divide-gray-200">
+                <thead className="dark:bg-dark-700 bg-gray-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      Item Code
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      Item Name
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      HSN Code
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      Unit
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      Location
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-semibold uppercase">
+                      Qty
+                    </th>
+                    <th className="px-4 py-3 text-center text-xs font-semibold uppercase">
+                      Action
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="dark:divide-dark-600 dark:bg-dark-800 divide-y divide-gray-200 bg-white">
+                  {stagedItems.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={7}
+                        className="px-4 py-8 text-center text-gray-500"
+                      >
+                        No items staged yet. Select an item above and confirm.
+                      </td>
+                    </tr>
+                  ) : (
+                    stagedItems.map((row) => (
+                      <tr key={row.itemId}>
+                        <td className="px-4 py-3 text-sm">{row.itemCode}</td>
+                        <td className="px-4 py-3 text-sm">{row.itemName}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {row.hsnCode || "—"}
+                        </td>
+                        <td className="px-4 py-3 text-sm">{row.unit}</td>
+                        <td className="px-4 py-3 text-sm">
+                          {row.itemLocation || "—"}
+                        </td>
+                        <td className="text-primary-600 px-4 py-3 text-sm font-bold">
+                          {row.issueQty}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            onClick={() => handleRemoveStaged(row.itemId)}
+                            className="text-xs text-red-500 hover:underline"
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {stagedItems.length > 0 && (
+              <div className="mt-6 flex justify-end">
+                <Button
+                  color="primary"
+                  onClick={handleSaveAll}
+                  disabled={saving}
+                  className="px-8"
+                >
+                  {saving ? "Saving..." : "Save All Issued Items"}
+                </Button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </Page>

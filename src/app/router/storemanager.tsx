@@ -18,10 +18,10 @@ import ItemGroup from "@/app/pages/storemanager/master/item-master/iteam-group";
 import ItemMasterFormPage from "@/app/pages/storemanager/master/item-master/form";
 // Purchase Master
 import PurchaseRegister from "@/app/pages/storemanager/purchase-master/purchase-register";
-import PurchaseRegisterForm  from "@/app/pages/storemanager/purchase-master/purchase-register/form/index"
+import PurchaseRegisterForm from "@/app/pages/storemanager/purchase-master/purchase-register/form/index";
 import PurchaseOrder from "@/app/pages/storemanager/purchase-master/purchase-order";
 import PurchaseGrr from "@/app/pages/storemanager/purchase-master/purchase-grr";
-import PurchaseGrrForm from "@/app/pages/storemanager/purchase-master/purchase-grr/grrindex"
+import PurchaseGrrForm from "@/app/pages/storemanager/purchase-master/purchase-grr/grrindex";
 // Stock Report
 import StockReport from "@/app/pages/storemanager/stock-report";
 import StockReportDetailPage from "@/app/pages/storemanager/stock-report/StockReportDetailPage";
@@ -112,11 +112,11 @@ export const storemanagerRoutes = [
         children: [
           {
             index: true,
-            Component: PurchaseRegister, 
+            Component: PurchaseRegister,
           },
           {
             path: "create",
-            Component: PurchaseRegisterForm , 
+            Component: PurchaseRegisterForm,
           },
           {
             path: "edit/:id",
@@ -137,19 +137,19 @@ export const storemanagerRoutes = [
           },
         ],
       },
-     {
-  path: "purchase-grr",
-  children: [
-    {
-      index: true,
-      Component: PurchaseGrr, // list page
-    },
-    {
-      path: "create",
-      Component: PurchaseGrrForm, // create/verify page
-    },
-  ],
-},
+      {
+        path: "purchase-grr",
+        children: [
+          {
+            index: true,
+            Component: PurchaseGrr, // list page
+          },
+          {
+            path: "create",
+            Component: PurchaseGrrForm, // create/verify page
+          },
+        ],
+      },
     ],
   },
 
