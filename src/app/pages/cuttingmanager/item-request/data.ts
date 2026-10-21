@@ -12,5 +12,6 @@ export interface ItemRequestRecord {
   workOrderNo?: string;
   totalItems?: number;
   items?: ItemRequestItem[];
+    requestType?: "Issue" | "Return";
   createdAt?: string;
 }
