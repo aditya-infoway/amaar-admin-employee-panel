@@ -77,23 +77,24 @@ export default function ItemRequestDetailPage() {
   const [issueNo, setIssueNo] = useState("");
   const todayDate = getToday();
   const [issueDate, setIssueDate] = useState<string>(getToday());
-  const fetchNextIssueNo = async (): Promise<string> => {
+   const fetchNextIssueNo = async (
+    type: "issue" | "return" = actionType,
+  ): Promise<string> => {
     const financialYearId = localStorage.getItem("financialYearId");
     const res = await Get(
       "storemanager/itemrequest/next-issue-no",
-      { financialYearId },
+      { financialYearId, requestType: type === "return" ? "Return" : "Issue" },
       false,
     );
     if (res?.data?.success) return res.data.data?.issueNo || "";
-    throw new Error(res?.data?.message || "Failed to generate Issue ID.");
+    throw new Error(res?.data?.message || "Failed to generate ID.");
   };
 
-  /* ---------- Issue ID preview ---------- */
   useEffect(() => {
-    fetchNextIssueNo()
+    fetchNextIssueNo(actionType)
       .then(setIssueNo)
       .catch((e) => toasterrormsg(e?.response?.data?.message || e.message));
-  }, []);
+  }, [actionType]);
 
   /* ---------- open requests load ---------- */
   useEffect(() => {
