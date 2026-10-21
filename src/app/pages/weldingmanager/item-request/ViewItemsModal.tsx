@@ -28,7 +28,9 @@ const thClass =
   "dark:bg-dark-800 dark:text-dark-100 bg-gray-200 text-xs font-semibold text-gray-800 uppercase";
 
 export function ViewItemsModal({ open, record, onClose }: Props) {
-  const items = record?.items ?? [];
+const items = record?.items ?? [];
+const isReturn = record?.requestType === "Return";
+const qtyLabel = isReturn ? "Return Qty" : "Order Qty";
 
   return (
     <Transition appear show={open} as={Fragment}>
@@ -86,7 +88,7 @@ export function ViewItemsModal({ open, record, onClose }: Props) {
                     <Tr>
                       <Th className={thClass}>Item Code</Th>
                       <Th className={thClass}>Item Name</Th>
-                      <Th className={thClass}>Order  Qty</Th>
+                     <Th className={thClass}>{qtyLabel}</Th>
                     </Tr>
                   </THead>
                   <TBody>

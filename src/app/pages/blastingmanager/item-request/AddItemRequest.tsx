@@ -101,7 +101,10 @@ export default function AddItemRequestPage() {
   /* ---------------- Submit ---------------- */
   const [submitting, setSubmitting] = useState(false);
 
-  const qtyLabel = requestType === "Return" ? "Return Qty" : "Order Qty";
+  const isReturn = requestType === "Return";
+  const qtyLabel = isReturn ? "Return Qty" : "Order Qty";
+  // Return me max = issued qty, Issue me max = BOM qty
+  const maxQtyLabel = isReturn ? "Issued Qty" : "Qty";
 
   /* ================================================================ */
   /* LOAD ASSIGNED WORK ORDERS (only my assigned tasks)               */
@@ -120,12 +123,16 @@ export default function AddItemRequestPage() {
         if (res?.data?.success) {
           setIssueNo(res.data.data?.issueNo || "");
         } else {
-          toasterrormsg(res?.data?.message || "Failed to generate Order  ID.");
+          toasterrormsg(
+            res?.data?.message ||
+              `Failed to generate ${requestType === "Return" ? "Return" : "Order"} ID.`,
+          );
         }
       } catch (err: any) {
         if (mounted) {
           toasterrormsg(
-            err?.response?.data?.message || "Failed to generate Order  ID.",
+            err?.response?.data?.message ||
+              `Failed to generate ${requestType === "Return" ? "Return" : "Order"} ID.`,
           );
         }
       }
@@ -140,19 +147,44 @@ export default function AddItemRequestPage() {
     const loadWorkOrders = async () => {
       try {
         setWorkOrderLoading(true);
+        setWorkOrders([]);
 
-        // Assigned work orders — same source as Pending Work Order page.
-        // Agar sirf pending wale chahiye to { status: "Pending" } pass karo.
+        // ---- Return: sirf is panel ke issued work orders ----
+        if (requestType === "Return") {
+          const financialYearId = localStorage.getItem("financialYearId");
+          const response = await Get(
+            "blasting/itemrequest/issued-workorders",
+            { financialYearId, _t: Date.now() },
+            false,
+          );
+          if (!mounted) return;
+
+          if (response?.data?.success || response?.data?.status === 200) {
+            const list: any[] = Array.isArray(response.data.data)
+              ? response.data.data
+              : [];
+            setWorkOrders(
+              list.map((wo) => ({
+                id: Number(wo.id),
+                workOrderNo: wo.workOrderNo,
+                model: wo.model ?? null,
+              })),
+            );
+          } else {
+            setWorkOrders([]);
+            if (response?.data?.message) toasterrormsg(response.data.message);
+          }
+          return;
+        }
+
+        // ---- Order: assigned tasks ----
         const response = await Get("workordertask/my-tasks", {}, false);
-
         if (!mounted) return;
 
         if (response?.data?.success || response?.data?.status === 200) {
           const list: any[] = Array.isArray(response.data.data)
             ? response.data.data
             : [];
-
-          // Ek work order ke multiple stages ho sakte hain -> unique workOrderId
           const map = new Map<number, WorkOrderOption>();
           list.forEach((task) => {
             const id = Number(task.workOrderId);
@@ -163,7 +195,6 @@ export default function AddItemRequestPage() {
               model: task.modelName || task.model || null,
             });
           });
-
           setWorkOrders(Array.from(map.values()));
         } else {
           setWorkOrders([]);
@@ -179,9 +210,7 @@ export default function AddItemRequestPage() {
           );
         }
       } finally {
-        if (mounted) {
-          setWorkOrderLoading(false);
-        }
+        if (mounted) setWorkOrderLoading(false);
       }
     };
 
@@ -189,7 +218,7 @@ export default function AddItemRequestPage() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [requestType]); // <- pehle [] tha
 
   /* ================================================================ */
   /* LOAD BOM ITEMS WHEN WORK ORDER CHANGES                          */
@@ -215,8 +244,13 @@ export default function AddItemRequestPage() {
         setSelectedItem(null);
         setIssueQty("");
 
+        const endpoint =
+          requestType === "Return"
+            ? "blasting/itemrequest/returnable-items"
+            : "blasting/itemrequest/items-by-workorder";
+
         const response = await Get(
-          "blasting/itemrequest/items-by-workorder",
+          endpoint,
           { workOrderId: Number(workOrderId), _t: Date.now() },
           false,
         );
@@ -250,7 +284,7 @@ export default function AddItemRequestPage() {
     return () => {
       mounted = false;
     };
-  }, [selectedWorkOrder?.id]);
+  }, [selectedWorkOrder?.id, requestType]);
 
   /* ================================================================ */
   /* HANDLERS                                                         */
@@ -259,7 +293,8 @@ export default function AddItemRequestPage() {
   const handleRequestTypeChange = (type: RequestType) => {
     if (type === requestType) return;
     setRequestType(type);
-    // Issue aur Return rows mix na ho, isliye reset
+    setSelectedWorkOrder(null);
+    setItems([]);
     setRows([]);
     setSelectedItem(null);
     setIssueQty("");
@@ -280,7 +315,8 @@ export default function AddItemRequestPage() {
     if (Number(value) <= 0) return `${qtyLabel} must be greater than 0`;
     if (!Number.isInteger(Number(value)))
       return `${qtyLabel} must be a whole number`;
-    if (Number(value) > max) return `${qtyLabel} cannot exceed Qty (${max})`;
+    if (Number(value) > max)
+      return `${qtyLabel} cannot exceed ${maxQtyLabel} (${max})`;
     return "";
   };
 
@@ -344,8 +380,8 @@ export default function AddItemRequestPage() {
       toasterrormsg("Please select a Work Order");
       return;
     }
-    if (requestType === "Issue" && !issueDate) {
-toasterrormsg("Please select Order Date");
+    if (!issueDate) {
+      toasterrormsg(`Please select ${isReturn ? "Return" : "Order"} Date`);
       return;
     }
     if (rows.length === 0) {
@@ -359,7 +395,7 @@ toasterrormsg("Please select Order Date");
 
       const payload = {
         requestType, // "Issue" | "Return"
-        issueDate: requestType === "Issue" ? issueDate : null,
+        issueDate,
         workOrderId: Number(selectedWorkOrder.id),
         financialYearId: financialYearId ? Number(financialYearId) : null,
         items: rows.map((row) => ({
@@ -407,10 +443,7 @@ toasterrormsg("Please select Order Date");
   );
 
   const canSubmit = Boolean(
-    selectedWorkOrder &&
-    rows.length > 0 &&
-    !submitting &&
-    (requestType !== "Issue" || issueDate),
+    selectedWorkOrder && rows.length > 0 && !submitting && issueDate,
   );
 
   /* ================================================================ */
@@ -453,44 +486,33 @@ toasterrormsg("Please select Order Date");
                   onChange={() => handleRequestTypeChange(type)}
                   className="accent-primary-600 size-4 cursor-pointer"
                 />
-                          {TYPE_LABEL[type]}
+                {TYPE_LABEL[type]}
               </label>
             ))}
           </div>
 
-          {/* ====================================================== */}
-          {/* ISSUE ID + ISSUE DATE (only for Issue)                 */}
-          {/* ====================================================== */}
-          {requestType === "Issue" && (
-            <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-12">
-              <div className="sm:col-span-3">
-                {/* <Input
-                  label="Issue ID"
-                  value=""
-                  readOnly
-                  placeholder="Auto"
-                /> */}
-                <Input
-                  label="Order ID"
-                  value={issueNo}
-                  readOnly
-                  placeholder="Auto"
-                />
-              </div>
-
-              <div className="sm:col-span-3">
-                <DatePicker
-                  label="Order Date"
-                  value={issueDate}
-                  onChange={(selectedDates: Date[]) => {
-                    const picked = selectedDates?.[0];
-                    setIssueDate(picked ? formatDateForApi(picked) : "");
-                  }}
-                  placeholder="Select Date"
-                />
-              </div>
+          <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-12">
+            <div className="sm:col-span-3">
+              <Input
+                label={isReturn ? "Return ID" : "Order ID"}
+                value={issueNo}
+                readOnly
+                placeholder="Auto"
+              />
             </div>
-          )}
+
+            <div className="sm:col-span-3">
+              <DatePicker
+                label={isReturn ? "Return Date" : "Order Date"}
+                value={issueDate}
+                onChange={(selectedDates: Date[]) => {
+                  const picked = selectedDates?.[0];
+                  setIssueDate(picked ? formatDateForApi(picked) : "");
+                }}
+                placeholder="Select Date"
+              />
+            </div>
+          </div>
 
           {/* ====================================================== */}
           {/* ROW: WORK ORDER + ITEM + QTY + ISSUE QTY + ADD         */}
@@ -504,7 +526,11 @@ toasterrormsg("Please select Order Date");
                 value={selectedWorkOrder}
                 onChange={handleWorkOrderChange}
                 placeholder={
-                  workOrderLoading ? "Loading..." : "Select Work Order"
+                  workOrderLoading
+                    ? "Loading..."
+                    : isReturn && workOrders.length === 0
+                      ? "No issued Work Orders"
+                      : "Select Work Order"
                 }
                 label="Select Work Order"
                 searchFields={["workOrderNo"]}
@@ -533,7 +559,7 @@ toasterrormsg("Please select Order Date");
                   <div className="flex items-center justify-between gap-3">
                     <span className="truncate text-sm">{item.itemName}</span>
                     <span className="text-sm font-semibold dark:text-gray-200">
-                      Qty: {item.bomQty ?? 0}
+                      {maxQtyLabel}: {item.bomQty ?? 0}
                     </span>
                   </div>
                 )}
@@ -543,7 +569,7 @@ toasterrormsg("Please select Order Date");
             {/* 3. Qty (Auto-filled Read-only) */}
             <div className="sm:col-span-2">
               <Input
-                label="Qty"
+                label={maxQtyLabel}
                 value={selectedItem?.bomQty ?? ""}
                 readOnly
                 placeholder="Auto"
