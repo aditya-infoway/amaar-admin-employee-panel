@@ -199,12 +199,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [state.isAuthenticated]);
 
   // STEP 1: login validate — OTP nahi
-  const login = async (credentials: { email: string; password: string;  latitude?: number; longitude?: number; }) => {
+  const login = async (credentials: {
+    email: string;
+    password: string;
+    latitude?: number;
+    longitude?: number;
+  }) => {
     dispatch({ type: "LOGIN_REQUEST" });
     try {
       const response = await Post(
         "employee/login",
-        { email: credentials.email, password: credentials.password ,  latitude: credentials.latitude,   longitude: credentials.longitude, },
+        {
+          email: credentials.email,
+          password: credentials.password,
+          latitude: credentials.latitude,
+          longitude: credentials.longitude,
+        },
         false,
       );
       const result = response.data;
@@ -248,8 +258,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.localStorage.setItem("subProcessId", String(subProcessId ?? ""));
       window.localStorage.setItem("subProcessName", subProcessName ?? "");
 
-      window.localStorage.setItem("latitude", String(credentials.latitude ?? ""));
-      window.localStorage.setItem("longitude", String(credentials.longitude ?? ""));
+      window.localStorage.setItem(
+        "latitude",
+        String(credentials.latitude ?? ""),
+      );
+      window.localStorage.setItem(
+        "longitude",
+        String(credentials.longitude ?? ""),
+      );
       toastsuccessmsg(result.message);
 
       dispatch({
@@ -313,7 +329,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // ✅ NEW — agar financialYearId diya gaya hai (default-set flow), to save karo
     if (options?.financialYearId) {
-      window.localStorage.setItem(FINANCIAL_YEAR_ID_KEY, options.financialYearId);
+      window.localStorage.setItem(
+        FINANCIAL_YEAR_ID_KEY,
+        options.financialYearId,
+      );
     }
 
     resetExpiry();
@@ -323,42 +342,44 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "SESSION_ESTABLISHED", payload: { user } });
   };
 
- // ✅ naya wala
-// naya wala — location fetch alag try/catch mein, timeout ke saath
-const logout = async () => {
-  let location: { latitude?: number; longitude?: number } | null = null;
+  // ✅ naya wala
+  // naya wala — location fetch alag try/catch mein, timeout ke saath
+  const logout = async () => {
+    let location: { latitude?: number; longitude?: number } | null = null;
 
-  try {
-    // location fetch ko max 4 sec do — agar permission dialog atka ya deny hua,
-    // checkout call phir bhi hoga (null lat/lng ke saath)
-    location = await Promise.race([
-      getCurrentLocation(),
-      new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
-    ]);
-  } catch (locErr) {
-    console.error("Location fetch failed, proceeding without it:", locErr);
-  }
+    try {
+      location = await Promise.race([
+        getCurrentLocation(),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000)),
+      ]);
+    } catch (locErr) {
+      console.error("Location fetch failed, proceeding without it:", locErr);
+    }
 
-  try {
-    const res = await Post(
-      "employee/checkout",
-      { latitude: location?.latitude, longitude: location?.longitude },
-      false
-    );
+    try {
+      const res = await Post(
+        "employee/checkout",
+        { latitude: location?.latitude, longitude: location?.longitude },
+        false,
+      );
 
-    window.dispatchEvent(
-      new CustomEvent("attendance-checkout", {
-        detail: { countTime: res.data?.data?.countTime ?? 0 },
-      })
-    );
-  } catch (err) {
-    console.error("Checkout API failed:", err);
-  }
+      window.dispatchEvent(
+        new CustomEvent("attendance-checkout", {
+          detail: { countTime: res.data?.data?.countTime ?? 0 },
+        }),
+      );
+    } catch (err) {
+      console.error("Checkout API failed:", err);
+    }
 
-  setSession(null);
-  clearAuthStorage();
-  dispatch({ type: "LOGOUT" });
-};
+    setSession(null);
+    clearAuthStorage();
+    dispatch({ type: "LOGOUT" });
+
+    // Shared login is on ADMIN panel
+    window.location.href =
+      import.meta.env.VITE_ADMIN_URL || "http://localhost:5001/login";
+  };
 
   if (!children) return null;
 

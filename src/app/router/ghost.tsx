@@ -17,6 +17,12 @@ const ghostRoutes: RouteObject = {
         Component: (await import("@/app/pages/Auth/select-company")).default,
       }),
     },
+    {
+      path: "auth-bridge",
+      lazy: async () => ({
+        Component: (await import("@/app/contexts/auth/AuthBridge")).default,
+      }),
+    },
   ],
 };
 
