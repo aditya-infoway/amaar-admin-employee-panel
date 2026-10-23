@@ -58,28 +58,32 @@ export default function SignIn() {
       password: "",
     },
   });
-// Local Imports ke baad, DIRECT_DASHBOARD_ROLE_IDS se pehle ya import section mein:
+  // Local Imports ke baad, DIRECT_DASHBOARD_ROLE_IDS se pehle ya import section mein:
 
   const onSubmit = async (data: AuthFormValues) => {
     try {
-          const location = await getCurrentLocation();
-      const result = await login({ email: data.email, password: data.password, latitude: location?.latitude,
-        longitude: location?.longitude, });
+      const location = await getCurrentLocation();
+      const result = await login({
+        email: data.email,
+        password: data.password,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
 
       // ✅ CHANGE — ab roleId check hota hai (Number cast safe comparison ke liye)
-     if (result && DIRECT_DASHBOARD_ROLE_IDS.includes(Number(result.roleId))) {
-  // ✅ FIX — login() sirf "pendingToken" set karta hai, "authToken" nahi.
-  // financial-years API ko x-token header chahiye jo ApiHelper "authToken" se padhta hai.
-  // completeAuth() baad me "authToken" set karta, lekin ye call usse PEHLE ho rahi thi — isliye 401 aata tha.
-  const pendingToken = localStorage.getItem("pendingToken");
-  if (pendingToken) {
-    localStorage.setItem("authToken", pendingToken);
-  }
+      if (result && DIRECT_DASHBOARD_ROLE_IDS.includes(Number(result.roleId))) {
+        // ✅ FIX — login() sirf "pendingToken" set karta hai, "authToken" nahi.
+        // financial-years API ko x-token header chahiye jo ApiHelper "authToken" se padhta hai.
+        // completeAuth() baad me "authToken" set karta, lekin ye call usse PEHLE ho rahi thi — isliye 401 aata tha.
+        const pendingToken = localStorage.getItem("pendingToken");
+        if (pendingToken) {
+          localStorage.setItem("authToken", pendingToken);
+        }
 
-  // ✅ NEW — select-company.tsx jaisi hi API call — hardcoded ID ki jagah
-  // real companyId/financialYearId server se lete hain
-  try {
-    const response = await Get("employee/financial-years", {}, false);
+        // ✅ NEW — select-company.tsx jaisi hi API call — hardcoded ID ki jagah
+        // real companyId/financialYearId server se lete hain
+        try {
+          const response = await Get("employee/financial-years", {}, false);
           const rows: FinancialYearRow[] = response.data?.success
             ? response.data.data || []
             : [];
@@ -88,8 +92,14 @@ export default function SignIn() {
             // in roles ke employee ki ek hi company/FY hoti hai, isliye pehla row lo
             const row = rows[0];
 
-            localStorage.setItem("financialYearId", String(row.financialYearId));
-            localStorage.setItem("companyDetailsId", String(row.companyDetailsId));
+            localStorage.setItem(
+              "financialYearId",
+              String(row.financialYearId),
+            );
+            localStorage.setItem(
+              "companyDetailsId",
+              String(row.companyDetailsId),
+            );
 
             completeAuth(String(row.companyId), {
               user: {
@@ -120,12 +130,15 @@ export default function SignIn() {
 
   return (
     <Page title="Login">
-      <main className="min-h-screen flex items-center justify-center bg-gray-50">
+      <main className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="w-full">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-0 overflow-hidden min-h-screen">
+          <div className="grid min-h-screen grid-cols-1 gap-0 overflow-hidden lg:grid-cols-2">
             {/* Left Side - Form */}
-            <div className="p-6 sm:p-8 lg:p-10 bg-white flex items-center justify-center">
-              <Card className="rounded-lg p-5 lg:p-7 bg-transparent w-full" style={{ overflow: "visible" }}>
+            <div className="flex items-center justify-center bg-white p-6 sm:p-8 lg:p-10">
+              <Card
+                className="w-full rounded-lg bg-transparent p-5 lg:p-7"
+                style={{ overflow: "visible" }}
+              >
                 <div className="mb-8 flex justify-start">
                   <img
                     src={APP_LOGO}
@@ -143,16 +156,17 @@ export default function SignIn() {
                 ></div>
 
                 <div className="mt-6 text-left">
-                  <h2 className="text-2xl sm:text-3xl font-bold text-primary">
+                  <h2 className="text-primary text-2xl font-bold sm:text-3xl">
                     Welcome to <span className="text-main">Autobook</span> ERP
                   </h2>
-                  <p className="mt-1 text-gray-700 leading-relaxed">
-                    Streamline your business operations with a powerful and easy-to-use ERP platform.
+                  <p className="mt-1 leading-relaxed text-gray-700">
+                    Streamline your business operations with a powerful and
+                    easy-to-use ERP platform.
                   </p>
                 </div>
 
                 <form onSubmit={handleSubmit(onSubmit)} autoComplete="off">
-                  <div className="space-y-4 mt-6">
+                  <div className="mt-6 space-y-4">
                     <Input
                       label="Email"
                       placeholder="Enter Email"
@@ -183,7 +197,9 @@ export default function SignIn() {
                   </div>
 
                   <div className="mt-2">
-                    <InputErrorMsg when={(errorMessage && errorMessage !== "") as boolean}>
+                    <InputErrorMsg
+                      when={(errorMessage && errorMessage !== "") as boolean}
+                    >
                       {errorMessage}
                     </InputErrorMsg>
                   </div>
@@ -200,11 +216,11 @@ export default function SignIn() {
             </div>
 
             {/* Right Side - Image */}
-            <div className="relative hidden lg:flex items-center justify-center">
+            <div className="relative hidden items-center justify-center lg:flex">
               <img
                 src="images/ammar/login.jpeg"
                 alt="Login Banner"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
               />
             </div>
           </div>
